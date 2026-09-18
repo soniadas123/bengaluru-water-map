@@ -1,0 +1,27 @@
+# Working documents. Word keeps lock and recovery files beside them.
+*.docx
+~$*
+~WRL*.tmp
+
+# Field survey forms. The map is built from the GeoJSONs alone -- build_map.py
+# never reads these, so they are not part of what this repository publishes.
+data/*.csv
+
+# Analysis material: QGIS project, classification rasters, figures, screenshots.
+*.png
+*.pptx
+*.qgz
+classification/
+cloudnative/
+make_word_table.py
+
+# The retired write-up page.
+_archive/
+
+# Local working instructions.
+CLAUDE.md
+
+# Python
+__pycache__/
+*.pyc
+.venv/

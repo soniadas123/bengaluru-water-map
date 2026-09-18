@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bengaluru Water Map</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<style>
+  :root {
+    --ink: #14202b;
+    --muted: #5b6b7a;
+    --line: #dde4ea;
+    --panel: rgba(255, 255, 255, 0.96);
+    --accent: #0b6ea8;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    font: 14px/1.45 "Segoe UI", Roboto, system-ui, sans-serif;
+    color: var(--ink);
+  }
+
+  #map { position: absolute; inset: 0; background: #eef2f5; }
+
+  .panel {
+    position: absolute;
+    z-index: 1000;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(15, 30, 45, 0.15);
+  }
+
+  /* Positioned against the viewport, so allow for the top and bottom margins. */
+  #controls, #legend {
+    top: 12px;
+    max-height: calc(100vh - 24px);
+  }
+
+  #controls {
+    left: 12px;
+    width: 290px;
+    overflow-y: auto;
+  }
+
+  #legend {
+    right: 12px;
+    width: 270px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Only the layer list scrolls, so the Basemap section and the Layers
+     heading stay put however many layers there are. */
+  #layers-details {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  #layer-list {
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  /* Stated explicitly: a <details> with display:flex has not always hidden
+     its contents when closed. */
+  details.collapsible:not([open]) > *:not(summary) { display: none; }
+
+  /* The controls panel's own summary is a title, not a section heading, so it
+     overrides the shared type styling but keeps the shared caret. */
+  #controls > summary {
+    padding: 12px 14px;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+    color: var(--ink);
+  }
+
+  #controls > summary b {
+    display: block;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  #controls > summary small {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .section {
+    border-top: 1px solid var(--line);
+    padding: 12px 14px;
+  }
+
+  .section > h2 {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+
+  input[type="text"]:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+  }
+
+  button.link {
+    padding: 0;
+    font: inherit;
+    font-size: 12px;
+    color: var(--accent);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  /* Search results */
+  #search-wrap { position: relative; }
+
+  #results {
+    display: none;
+    position: absolute;
+    z-index: 5;
+    left: 0;
+    right: 0;
+    margin-top: 3px;
+    max-height: 230px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: 0 6px 16px rgba(15, 30, 45, 0.18);
+  }
+
+  #results button {
+    display: block;
+    width: 100%;
+    padding: 7px 9px;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+
+  #results button:last-child { border-bottom: 0; }
+  #results button:hover { background: #eef6fb; }
+  #results .kind { display: block; font-size: 11px; color: var(--muted); }
+  #results .none { padding: 8px 9px; font-size: 13px; color: var(--muted); }
+
+  /* Report button */
+  #selected-note {
+    margin: 8px 0 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  #selected-note b { color: var(--ink); font-weight: 600; }
+
+  #report {
+    width: 100%;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  #report:hover:not(:disabled) { background: #095a8b; }
+
+  #report:disabled {
+    color: var(--muted);
+    background: #eef2f5;
+    border-color: var(--line);
+    cursor: not-allowed;
+  }
+
+  #reset { display: block; margin: 9px auto 0; }
+
+  /* Legend */
+  .layer-row { padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .layer-row:last-child { border-bottom: 0; }
+
+  .layer-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .layer-top input { margin: 0; flex: none; }
+  .layer-top .name { flex: 1; font-size: 13px; }
+
+  .swatch { flex: none; width: 20px; height: 12px; border-radius: 2px; }
+
+  /* Collapsible sections. The summary is styled to match the .section > h2
+     headings so a collapsed and an ordinary section read the same. */
+  details.collapsible > summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  /* Hide the native disclosure triangle in both engines. */
+  details.collapsible > summary::-webkit-details-marker { display: none; }
+
+  details.collapsible > summary::after {
+    content: '';
+    margin-left: auto;
+    border: 4px solid transparent;
+    border-top-color: var(--muted);
+    transform: translateY(2px);
+  }
+
+  details.collapsible[open] > summary::after {
+    border-top-color: transparent;
+    border-bottom-color: var(--muted);
+    transform: translateY(-2px);
+  }
+
+  /* The "currently set to" note in a summary, e.g. the basemap in use. */
+  .summary-state {
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink);
+  }
+
+  details.collapsible.section[open] > summary { margin-bottom: 8px; }
+
+  .basemaps { display: flex; gap: 6px; }
+
+  .basemaps label {
+    position: relative;
+    flex: 1;
+    padding: 6px 0;
+    font-size: 12px;
+    text-align: center;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .basemaps input { position: absolute; opacity: 0; pointer-events: none; }
+  .basemaps label.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* Help dialog */
+  #help {
+    width: min(640px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+    padding: 0;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(15, 30, 45, 0.3);
+  }
+
+  #help::backdrop { background: rgba(15, 30, 45, 0.45); }
+
+  #help article {
+    max-height: calc(100vh - 132px);
+    overflow-y: auto;
+    padding: 22px 24px 8px;
+  }
+
+  #help h2 { margin: 0 0 14px; font-size: 19px; }
+
+  #help h3 {
+    margin: 18px 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  #help p { margin: 0 0 8px; font-size: 13px; }
+  #help ul { margin: 0 0 8px; padding-left: 18px; font-size: 13px; }
+  #help li { margin-bottom: 4px; }
+
+  #help .callout {
+    padding: 9px 11px;
+    background: #eef6fb;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+  }
+
+  #help-close {
+    display: block;
+    margin: 8px 24px 20px auto;
+    padding: 7px 16px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  /* Lift Leaflet's bottom controls clear of the footer strip. The height is
+     measured at runtime, because a hardcoded offset silently stopped matching
+     once the info button made the footer taller. */
+  /* The credit sits at the foot of the bottom-right stack, under the help
+     button. Capped and right-aligned so it wraps into a block in the corner
+     instead of running the width of the map. */
+  /* Just the byline and the tile credit. The full data credit lives in the
+     help dialog, so the corner does not have to carry it. */
+  .leaflet-control-attribution {
+    max-width: 260px;
+    font-size: 10px;
+    line-height: 1.45;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* Zoom, the view buttons and the help button share one card, so the corner
+     holds a single object instead of three boxes of three different widths.
+     Same visual language as .panel above; overflow clips the buttons to the
+     rounded corners. */
+  .map-tools {
+    width: 132px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(15, 30, 45, 0.15);
+    overflow: hidden;
+  }
+
+  /* Each group after the first is fenced off by a hairline. */
+  .map-tools > * + * { border-top: 1px solid var(--line); }
+
+  .map-tools button {
+    display: block;
+    width: 100%;
+    padding: 5px 10px;
+    font: inherit;
+    font-size: 11px;
+    color: var(--ink);
+    text-align: left;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .map-tools button:hover:not(:disabled) { background: #eef6fb; color: var(--accent); }
+  .map-tools button:disabled { color: #b3bdc6; cursor: default; }
+
+  /* The two zoom buttons sit side by side, so they stay a usable target
+     without giving a full row each to a single glyph. */
+  .map-tools .zoom-row { display: flex; }
+
+  .map-tools .zoom-row button {
+    height: 30px;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+    text-align: center;
+  }
+
+  .map-tools .zoom-row button + button { border-left: 1px solid var(--line); }
+
+  .map-tools .help button { font-weight: 600; }
+
+  .coord-readout {
+    padding: 3px 8px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(15, 30, 45, 0.15);
+  }
+
+  /* Popups */
+  .leaflet-popup-content { margin: 12px 14px; min-width: 210px; }
+  .popup h3 { margin: 0 0 2px; font-size: 15px; }
+  .popup .kind { margin-bottom: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .popup table { width: 100%; border-collapse: collapse; }
+  .popup th { width: 42%; padding: 3px 8px 3px 0; font-weight: 400; text-align: left; color: var(--muted); vertical-align: top; }
+  .popup td { padding: 3px 0; vertical-align: top; }
+
+  @media (max-width: 820px) {
+    #controls, #legend {
+      position: static;
+      width: auto;
+      max-height: none;
+      margin: 8px;
+      box-shadow: none;
+      /* The page itself scrolls at this width, so nothing is clipped or
+         given its own scrollbar. */
+      display: block;
+      overflow: visible;
+    }
+
+    #layer-list { overflow-y: visible; }
+    #map { position: static; height: 65vh; }
+    body { background: #f4f7f9; }
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<details id="controls" class="panel collapsible" open>
+  <summary>
+    <span>
+      <b>Bengaluru Water Map</b>
+      <small>Stormwater drains, existing water bodies, and water bodies lost to
+        the city.</small>
+    </span>
+  </summary>
+
+  <div class="section">
+    <h2>Search</h2>
+    <div id="search-wrap">
+      <input type="text" id="search" placeholder="Water body or ward name" autocomplete="off" />
+      <div id="results"></div>
+    </div>
+    <div id="selected-note">Search, or click a ward or water body on the map. The layer
+      has to be switched on in the legend for a click to find it.</div>
+    <button id="report" disabled>Generate report</button>
+    <button class="link" id="reset">Reset</button>
+  </div>
+</details>
+
+<div id="legend" class="panel">
+  <details id="basemap-details" class="section collapsible" style="border-top:0">
+    <summary>Basemap <span id="basemap-current" class="summary-state">Map</span></summary>
+    <div class="basemaps" id="basemaps"></div>
+  </details>
+  <details id="layers-details" class="section collapsible" open>
+    <summary>Layers</summary>
+    <div id="layer-list"></div>
+  </details>
+</div>
+
+
+<dialog id="help">
+  <article>
+    <h2>How to use this map</h2>
+
+    <h3>Getting around</h3>
+    <p>Drag to pan, scroll to zoom, or use the <b>+</b> and <b>&minus;</b> buttons at the
+      bottom right. The <b>Basemap</b> section at the top of the legend switches between
+      the street <b>Map</b> and <b>Satellite</b> imagery.</p>
+    <p>The map opens on central Bengaluru. Above the zoom buttons, <b>Default view</b> returns
+      to that opening framing and <b>Whole city</b> zooms out to the full Greater Bengaluru
+      Authority boundary.</p>
+    <p>The latitude and longitude under your pointer are shown at the bottom left, above the
+      scale bar. When the pointer is off the map it shows the centre of the current view.</p>
+
+    <h3>Layers</h3>
+    <p>Each layer in the legend has a checkbox to show or hide it, and a colour key drawn in
+      that layer's own colour and line thickness, so the legend always matches the map.</p>
+    <p>The number beside a layer is how many features it holds.</p>
+    <p><b>Secondary drains</b> and <b>Corporations</b> start switched off. There are 2,224
+      secondary drain segments and drawing them all slows the first paint.</p>
+
+    <h3>Finding a water body or ward</h3>
+    <p>Type at least two characters in the search box to match water body and ward names, then
+      click a result to fly to it. You can also <b>click a ward or a water body directly on the
+      map</b> — but the layer has to be switched on in the legend for a click to find it.</p>
+    <p>Clicking a drain shows its popup without changing what you have selected, because a
+      report covers a ward or a water body and a drain often runs through several wards.</p>
+    <p><b>Reset</b> under the report button clears the current pick and empties the search box.
+      It leaves the map where it is and the layer switches as you set them.</p>
+
+    <h3>Generating a report</h3>
+    <p>Pick a ward or a water body, by search or by clicking it, then press
+      <b>Generate report</b>. A new window opens with the details, a map and tables of the
+      existing and lost water bodies in that ward. Use <b>Print / Save as PDF</b> in that
+      window to keep it.</p>
+    <p class="callout"><b>The report draws its own map, so it does not matter what the screen
+      is showing when you press the button.</b> It always frames the whole ward with every layer
+      switched on, and outlines the subject in blue.</p>
+    <p>A report about a water body frames that water body's ward too, so the map and the
+      tables beneath it describe the same place. The tables likewise always list every water
+      body recorded in the ward, whatever the layer switches say, so a report is never
+      missing part of the record.</p>
+    <p>The report map is drawn as vector artwork from the data itself, so it appears at once
+      and has no basemap photograph underneath. Neighbouring wards, the water bodies and the
+      drain
+      network give it its context, and it stays sharp however far you zoom into the PDF.</p>
+
+    <h3>About the data</h3>
+    <p>Water body, drain and ward data by MOD Foundation, from the Building a Resilient
+      Bengaluru
+      website, accessed 23 May 2026. Basemap tiles &copy; Esri.</p>
+
+    <h3>GIS disclaimer</h3>
+    <p class="callout">While every effort has been made to ensure the accuracy of this
+      information, Sonia Das makes no warranty, expressed or implied, as to its absolute
+      accuracy. This product is for informational purposes and is not suitable for legal,
+      engineering, or surveying purposes. It does not represent an on-the-ground survey and
+      represents only approximate relative locations. All files and code are publicly
+      accessible through our GitHub repository.</p>
+  </article>
+  <button type="button" id="help-close">Close</button>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+/*__DATA__*/
+</script>
+<script>
+(function () {
+  'use strict';
+
+  // ---------------------------------------------------------------- layers
+  // Order matters: the first entry is drawn at the bottom, the last on top.
+  var LAYER_DEFS = [
+    {
+      id: 'gba_wards', label: 'GBA wards', kind: 'Ward', on: true, selectable: true,
+      style: { color: '#64748b', weight: 1.2, fill: false },
+      fields: ['ward_name', 'Corporation', 'Assembly', 'valley']
+    },
+    {
+      id: 'gba_corporations', label: 'Corporations', kind: 'Corporation', on: false,
+      interactive: false,
+      style: { color: '#334155', weight: 2.2, dashArray: '6 4', fill: false },
+      fields: ['Corporation']
+    },
+    {
+      id: 'gba_boundary', label: 'GBA boundary', kind: 'Greater Bengaluru Authority', on: true,
+      interactive: false,
+      style: { color: '#1f2933', weight: 2.5, fill: false },
+      fields: ['Name']
+    },
+    {
+      id: 'lakes_lost', label: 'Lost water bodies', kind: 'Lost water body',
+      on: true, selectable: true,
+      style: { color: '#b91c1c', weight: 1, fillColor: '#ef4444', fillOpacity: 0.55, fill: true },
+      fields: ['name', 'area_acres', 'year', 'current_use', 'ward_name', 'Corporation', 'valley', 'subvalley']
+    },
+    {
+      id: 'lakes_existing', label: 'Existing water bodies', kind: 'Existing water body',
+      on: true, selectable: true,
+      style: { color: '#0369a1', weight: 1, fillColor: '#0ea5e9', fillOpacity: 0.7, fill: true },
+      fields: ['name', 'area_acres', 'status', 'custodian', 'Category', 'ward_name', 'Corporation', 'valley', 'subvalley']
+    },
+    {
+      id: 'secondarydrains', label: 'Secondary drains', kind: 'Secondary drain', on: false,
+      style: { color: '#7dd3fc', weight: 1.2, fill: false },
+      fields: ['Drain num', 'sec_id', 'pri_Drain num', 'length_m', 'ward_name', 'Corporation', 'valley', 'subvalley']
+    },
+    {
+      id: 'primarydrains', label: 'Primary drains', kind: 'Primary drain', on: true,
+      style: { color: '#1d4ed8', weight: 2.6, fill: false },
+      fields: ['Drain num', 'length_m', 'ward_name', 'Corporation', 'valley', 'subvalley']
+    }
+  ];
+
+  var FIELD_LABELS = {
+    name: 'Name', Name: 'Name', ward_name: 'Ward', Corporation: 'Corporation',
+    Assembly: 'Assembly constituency', valley: 'Valley', subvalley: 'Sub-valley',
+    area_acres: 'Area', status: 'Status', custodian: 'Custodian', Category: 'Type',
+    year: 'Last mapped', current_use: 'Now occupied by',
+    'Drain num': 'Drain number', 'sec_id': 'Segment ID',
+    'pri_Drain num': 'Feeds into primary drain',
+    length_m: 'Length'
+  };
+
+  // Both basemaps come from Esri. OpenStreetMap's own tile servers refuse
+  // requests from a file:// page -- they require a valid Referer and return an
+  // "Access blocked" image instead -- and this map is meant to be opened by
+  // double-clicking, so OSM tiles are not an option here.
+  var BASEMAPS = {
+    streets: {
+      label: 'Map',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      options: { maxZoom: 19, attribution: 'Tiles &copy; Esri' }
+    },
+    satellite: {
+      label: 'Satellite',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      options: { maxZoom: 19, attribution: 'Imagery &copy; Esri' }
+    }
+  };
+
+  // The search hit a report would describe: { label, def, feature }.
+  var selected = null;
+
+  // ------------------------------------------------------------------- map
+  // Central Bengaluru: Cubbon Park and Vidhana Soudha across to Ulsoor Lake,
+  // roughly 12.7 km wide. fitBounds rather than a fixed centre and zoom, so
+  // the same area is framed whatever the window size.
+  var DEFAULT_BOUNDS = L.latLngBounds([12.9444, 77.5337], [12.9997, 77.6481]);
+
+  // The controls panel sits over the top-left corner where Leaflet puts its
+  // zoom buttons by default, at the same z-index, so they move to the
+  // bottom right where nothing else is.
+  // The project credit rides in the attribution line, where map credits
+  // conventionally live; the tile layer adds the Esri half. It is added first
+  // of the bottom-right controls, so it lands under the help button.
+  var map = L.map('map', {
+    zoomControl: false,
+    preferCanvas: true,
+    attributionControl: false
+  });
+
+  function fitDefault() { map.fitBounds(DEFAULT_BOUNDS); }
+  function fitCity() {
+    map.fitBounds(L.geoJSON(DATA.gba_boundary).getBounds(), { padding: [20, 20] });
+  }
+
+  // Bottom-left, in order: the coordinate readout sits above the scale bar
+  // because within a bottom corner the first control added is the highest.
+  var coordinates = L.control({ position: 'bottomleft' });
+  coordinates.onAdd = function () {
+    var box = L.DomUtil.create('div', 'coord-readout');
+    L.DomEvent.disableClickPropagation(box);
+    return box;
+  };
+  coordinates.addTo(map);
+
+  function showCoordinates(latlng) {
+    coordinates.getContainer().textContent =
+      latlng.lat.toFixed(5) + ', ' + latlng.lng.toFixed(5);
+  }
+
+  // Follow the pointer, but fall back to the map centre so the readout is
+  // never blank on a touch device, which never fires mousemove.
+  map.on('mousemove', function (event) { showCoordinates(event.latlng); });
+  map.on('mouseout move zoomend', function () { showCoordinates(map.getCenter()); });
+
+  L.control.scale({ imperial: false }).addTo(map);
+
+  // Leaflet stacks each new bottom-corner control above the last, so the
+  // credit is added first to sit at the foot, with the tools card above it.
+  // Just the byline here; the data credit is in the help dialog.
+  L.control.attribution({ prefix: 'A project by Sonia Das' }).addTo(map);
+
+  // Zoom, the view buttons and the help button in one card. Leaflet's own zoom
+  // control cannot share a container, so its two buttons are rebuilt here; the
+  // only thing that costs us is the greying out at the zoom limits, which
+  // setZoomState puts back.
+  var zoomIn, zoomOut;
+
+  function setZoomState() {
+    zoomIn.disabled = map.getZoom() >= map.getMaxZoom();
+    zoomOut.disabled = map.getZoom() <= map.getMinZoom();
+  }
+
+  var mapTools = L.control({ position: 'bottomright' });
+  mapTools.onAdd = function () {
+    // No leaflet-bar class: the card brings its own border and shadow, and
+    // Leaflet's would fight them.
+    var box = L.DomUtil.create('div', 'map-tools');
+    box.innerHTML =
+      '<div class="zoom-row">' +
+        '<button type="button" id="zoom-in" title="Zoom in" aria-label="Zoom in">+</button>' +
+        '<button type="button" id="zoom-out" title="Zoom out" aria-label="Zoom out">\u2212</button>' +
+      '</div>' +
+      '<div class="views">' +
+        '<button type="button" id="view-default">Default view</button>' +
+        '<button type="button" id="view-city">Whole city</button>' +
+      '</div>' +
+      '<div class="help">' +
+        '<button type="button" id="help-open" title="How to use this map">How to use?</button>' +
+      '</div>';
+
+    // Without both of these a click or a wheel over the card also reaches the
+    // map underneath.
+    L.DomEvent.disableClickPropagation(box);
+    L.DomEvent.disableScrollPropagation(box);
+
+    zoomIn = box.querySelector('#zoom-in');
+    zoomOut = box.querySelector('#zoom-out');
+    zoomIn.addEventListener('click', function () { map.zoomIn(); });
+    zoomOut.addEventListener('click', function () { map.zoomOut(); });
+    box.querySelector('#view-default').addEventListener('click', fitDefault);
+    box.querySelector('#view-city').addEventListener('click', fitCity);
+    return box;
+  };
+  mapTools.addTo(map);
+
+  map.on('zoomend', setZoomState);
+  setZoomState();
+
+  var baseLayer = null;
+  var basemapKey = null;
+  function setBasemap(key) {
+    if (baseLayer) map.removeLayer(baseLayer);
+    basemapKey = key;
+    var basemap = BASEMAPS[key];
+    baseLayer = L.tileLayer(basemap.url, basemap.options).addTo(map);
+    baseLayer.bringToBack();
+    // Keep the choice visible while the section is collapsed.
+    document.getElementById('basemap-current').textContent = basemap.label;
+  }
+
+  // ------------------------------------------------------------- utilities
+  // Features spanning several wards or valleys store them comma-joined with
+  // no space, which reads badly in a popup.
+  function listText(value) {
+    return String(value).split(',').map(function (part) {
+      return part.trim();
+    }).filter(Boolean).join(', ');
+  }
+
+  function formatValue(field, value) {
+    if (field === 'area_acres') return value.toFixed(2) + ' acres';
+    if (field === 'length_m') return Math.round(value).toLocaleString() + ' m';
+    if (field === 'valley' || field === 'subvalley' || field === 'ward_name') {
+      return listText(value);
+    }
+    return String(value);
+  }
+
+  function headingOf(props, def) {
+    if (def.id === 'primarydrains' || def.id === 'secondarydrains') {
+      // The build strips the "unknown<N>" placeholders that stand in for a
+      // name on 995 secondary drains, so fall back to the segment id.
+      if (props['Drain num']) return 'Drain ' + props['Drain num'];
+      if (props.sec_id) return def.kind + ' ' + props.sec_id;
+      return def.kind;
+    }
+    return props.name || props.ward_name || props.Name || def.kind;
+  }
+
+  function popupHtml(def, props) {
+    var heading = headingOf(props, def);
+    var rows = def.fields
+      .filter(function (field) {
+        return props[field] !== undefined && String(props[field]) !== String(heading);
+      })
+      .map(function (field) {
+        return '<tr><th>' + (FIELD_LABELS[field] || field) + '</th><td>' +
+               formatValue(field, props[field]) + '</td></tr>';
+      })
+      .join('');
+    return '<div class="popup"><h3>' + heading + '</h3>' +
+           '<div class="kind">' + def.kind + '</div>' +
+           '<table>' + rows + '</table></div>';
+  }
+
+  function sumOf(features, field) {
+    return features.reduce(function (total, feature) {
+      return total + (feature.properties[field] || 0);
+    }, 0);
+  }
+
+  function layerById(id) {
+    return LAYER_DEFS.filter(function (def) { return def.id === id; })[0];
+  }
+
+  var EMPTY_NOTE = 'Search, or click a ward or water body on the map. The layer ' +
+    'has to be switched on in the legend for a click to find it.';
+
+  // The one place that decides what a report is about. Reached from a search
+  // result and from clicking a ward or water body on the map.
+  function select(def, feature) {
+    var label = headingOf(feature.properties, def);
+    selected = { def: def, feature: feature, label: label };
+    document.getElementById('selected-note').innerHTML =
+      'Selected: <b>' + esc(label) + '</b> (' + def.kind.toLowerCase() + ')';
+    document.getElementById('report').disabled = false;
+  }
+
+  // Clears the pick, not the view: Default view on the map tools card is what
+  // moves the map, and the legend switches stay as the reader set them.
+  function buildReset() {
+    document.getElementById('reset').addEventListener('click', function () {
+      selected = null;
+      document.getElementById('report').disabled = true;
+      document.getElementById('selected-note').textContent = EMPTY_NOTE;
+      var search = document.getElementById('search');
+      search.value = '';
+      document.getElementById('results').style.display = 'none';
+      map.closePopup();
+    });
+  }
+
+  // ---------------------------------------------------------------- render
+  // def.style is the one description of how a layer looks, shared by the live
+  // map, the legend swatch and the report SVG. Nothing writes to it.
+  // One renderer for every layer, not one each. A canvas is opaque to DOM
+  // hit-testing, so stacked per-layer canvases would let only the topmost one
+  // receive clicks and every other layer's popups would never open. With a
+  // single canvas Leaflet walks its whole layer list and picks the topmost
+  // feature under the pointer.
+  var renderer = L.canvas();
+
+  LAYER_DEFS.forEach(function (def) {
+    def.visible = [];
+    def.layer = L.geoJSON(null, {
+      renderer: renderer,
+      // The boundary and corporation outlines cover the whole city, and
+      // Polygon._containsPoint ray-casts whether or not the shape is filled.
+      // Left interactive they would swallow every click before it reached the
+      // ward underneath, so they are excluded from hit testing entirely.
+      interactive: def.interactive !== false,
+      style: function () { return def.style; },
+      onEachFeature: function (feature, layer) {
+        if (def.interactive === false) return;
+        layer.bindPopup(popupHtml(def, feature.properties));
+        // Clicking a ward or water body picks it as the report subject, the same way
+        // a search result does. Drains and boundaries only show their popup.
+        if (def.selectable) {
+          layer.on('click', function () {
+            select(def, feature);
+          });
+        }
+      }
+    });
+  });
+
+  // Draw order is now the order paths are added to the shared renderer, so
+  // clear everything before adding anything: interleaving would append the
+  // first layer's new paths on top of the others.
+  function refresh() {
+    LAYER_DEFS.forEach(function (def) {
+      def.layer.clearLayers();
+    });
+
+    LAYER_DEFS.forEach(function (def) {
+      def.visible = DATA[def.id].features;
+      def.layer.addData({ type: 'FeatureCollection', features: def.visible });
+    });
+  }
+
+  // ---------------------------------------------------------------- legend
+  function swatchHtml(def) {
+    return '<span class="swatch" id="swatch-' + def.id + '"></span>';
+  }
+
+  // The key beside a layer name, drawn in that layer's own colour and weight.
+  function paintSwatch(def) {
+    var swatch = document.getElementById('swatch-' + def.id);
+    if (!swatch) return;
+    var line = (def.style.dashArray ? 'dashed ' : 'solid ') + def.style.color;
+    if (def.style.fill) {
+      swatch.style.background = def.style.fillColor;
+      swatch.style.border = Math.min(4, def.style.weight) + 'px ' + line;
+      swatch.style.height = '12px';
+    } else {
+      swatch.style.background = 'none';
+      swatch.style.border = '0';
+      swatch.style.borderBottom = Math.max(2, Math.min(8, def.style.weight)) + 'px ' + line;
+      swatch.style.height = '6px';
+    }
+  }
+
+  function buildLegend() {
+    var list = document.getElementById('layer-list');
+
+    // Show the topmost layer first, which reads more naturally than draw order.
+    LAYER_DEFS.slice().reverse().forEach(function (def) {
+      var row = document.createElement('div');
+      row.className = 'layer-row';
+      row.innerHTML =
+        '<label class="layer-top">' +
+          '<input type="checkbox"' + (def.on ? ' checked' : '') + ' />' +
+          swatchHtml(def) +
+          '<span class="name">' + def.label + '</span>' +
+        '</label>';
+
+      var toggle = row.querySelector('input[type="checkbox"]');
+
+      toggle.addEventListener('change', function () {
+        if (toggle.checked) def.layer.addTo(map);
+        else map.removeLayer(def.layer);
+        // Re-adding appends to the end of the shared renderer's draw list, so
+        // rebuild everything in order to keep the layer stack correct.
+        if (toggle.checked) refresh();
+      });
+
+      list.appendChild(row);
+      paintSwatch(def);
+      if (def.on) def.layer.addTo(map);
+    });
+
+    var holder = document.getElementById('basemaps');
+    Object.keys(BASEMAPS).forEach(function (key) {
+      var label = document.createElement('label');
+      if (key === 'streets') label.className = 'on';
+      label.innerHTML = '<input type="radio" name="basemap" value="' + key + '"' +
+                        (key === 'streets' ? ' checked' : '') + ' />' + BASEMAPS[key].label;
+      label.querySelector('input').addEventListener('change', function () {
+        holder.querySelectorAll('label').forEach(function (other) {
+          other.className = '';
+        });
+        label.className = 'on';
+        setBasemap(key);
+      });
+      holder.appendChild(label);
+    });
+  }
+
+  // ---------------------------------------------------------------- search
+  function buildSearch() {
+    var index = [];
+    [['lakes_existing', 'name'], ['lakes_lost', 'name'], ['gba_wards', 'ward_name']]
+      .forEach(function (pair) {
+        var def = layerById(pair[0]);
+        DATA[pair[0]].features.forEach(function (feature) {
+          var label = feature.properties[pair[1]];
+          if (label) index.push({ label: label, def: def, feature: feature });
+        });
+      });
+
+    var input = document.getElementById('search');
+    var results = document.getElementById('results');
+
+    input.addEventListener('input', function () {
+      var query = input.value.trim().toLowerCase();
+      if (query.length < 2) {
+        results.style.display = 'none';
+        return;
+      }
+
+      var hits = index.filter(function (item) {
+        return item.label.toLowerCase().indexOf(query) > -1;
+      }).slice(0, 12);
+
+      results.innerHTML = '';
+      if (!hits.length) {
+        results.innerHTML = '<div class="none">No match</div>';
+      } else {
+        hits.forEach(function (hit) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.innerHTML = hit.label + '<span class="kind">' + hit.def.kind + '</span>';
+          button.addEventListener('click', function () {
+            goTo(hit);
+            results.style.display = 'none';
+          });
+          results.appendChild(button);
+        });
+      }
+      results.style.display = 'block';
+    });
+
+    document.addEventListener('click', function (event) {
+      if (!document.getElementById('search-wrap').contains(event.target)) {
+        results.style.display = 'none';
+      }
+    });
+  }
+
+  function goTo(hit) {
+    if (!map.hasLayer(hit.def.layer)) hit.def.layer.addTo(map);
+    var bounds = L.geoJSON(hit.feature).getBounds();
+    map.fitBounds(bounds, { maxZoom: 16, padding: [40, 40] });
+    L.popup()
+      .setLatLng(bounds.getCenter())
+      .setContent(popupHtml(hit.def, hit.feature.properties))
+      .openOn(map);
+    select(hit.def, hit.feature);
+  }
+
+  // ---------------------------------------------------------------- report
+  function esc(value) {
+    return String(value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // Missing values are common in this data, so show a dash rather than a gap.
+  function cell(value) {
+    if (value === undefined || value === null || String(value).trim() === '') {
+      return '&mdash;';
+    }
+    return esc(value);
+  }
+
+  // The report frames the subject's ward, so both the image and the tables
+  // below it describe the same ward. A water body with no ward falls back to itself.
+  function reportSubjectFeature(hit) {
+    if (hit.def.id === 'gba_wards') return hit.feature;
+    var wardName = String(hit.feature.properties.ward_name || '').trim();
+    if (!wardName) return hit.feature;
+    var ward = DATA.gba_wards.features.filter(function (f) {
+      return String(f.properties.ward_name || '').trim() === wardName;
+    })[0];
+    return ward || hit.feature;
+  }
+
+  // ----------------------------------------------- report map, drawn as SVG
+  // The report map is emitted as vector artwork straight from DATA: no hidden
+  // Leaflet map, no basemap tiles to wait for, nothing to rasterise. Being
+  // synchronous, it lets the whole report go out in a single write.
+  //
+  // There is no basemap underneath. The frame is padded, so neighbouring wards,
+  // both water body layers and the drain network supply the context the tiles used to.
+  var REPORT_W = 900;
+  var REPORT_H = 600;
+
+  // Feature bounding boxes, computed once and cached on the feature. Used to
+  // skip the ~90% of features nowhere near the ward a report frames.
+  function bboxOf(feature) {
+    if (feature.__bbox) return feature.__bbox;
+    var west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
+    (function scan(coordinates) {
+      if (typeof coordinates[0] === 'number') {
+        if (coordinates[0] < west) west = coordinates[0];
+        if (coordinates[0] > east) east = coordinates[0];
+        if (coordinates[1] < south) south = coordinates[1];
+        if (coordinates[1] > north) north = coordinates[1];
+        return;
+      }
+      coordinates.forEach(scan);
+    }(feature.geometry.coordinates));
+    feature.__bbox = [west, south, east, north];
+    return feature.__bbox;
+  }
+
+  // Padded, so drains and water bodies continue past the ward edge instead of being
+  // cut off at it.
+  function reportFrame(subject) {
+    var box = bboxOf(subject);
+    var padX = (box[2] - box[0]) * 0.25;
+    var padY = (box[3] - box[1]) * 0.25;
+    return [box[0] - padX, box[1] - padY, box[2] + padX, box[3] + padY];
+  }
+
+  // Longitude/latitude to SVG user units. L.CRS.EPSG3857 does the Mercator
+  // maths, so the report map keeps the same shape as the map on screen. One
+  // scale serves both axes and the result is centred, so nothing is stretched.
+  function makeProjector(frame) {
+    var southWest = L.CRS.EPSG3857.project(L.latLng(frame[1], frame[0]));
+    var northEast = L.CRS.EPSG3857.project(L.latLng(frame[3], frame[2]));
+    var width = northEast.x - southWest.x;
+    var height = northEast.y - southWest.y;
+    var scale = Math.min(REPORT_W / width, REPORT_H / height);
+    var offsetX = (REPORT_W - width * scale) / 2;
+    var offsetY = (REPORT_H - height * scale) / 2;
+
+    return function (position) {
+      var point = L.CRS.EPSG3857.project(L.latLng(position[1], position[0]));
+      // SVG y grows downward where Mercator y grows upward, hence northEast.y
+      // minus the point rather than the point minus southWest.y.
+      return (offsetX + (point.x - southWest.x) * scale).toFixed(1) + ',' +
+             (offsetY + (northEast.y - point.y) * scale).toFixed(1);
+    };
+  }
+
+  // One path for a whole feature. Every geometry here is a polygon or a line,
+  // and both reduce to a list of coordinate runs; polygons close theirs, so an
+  // inner ring reads as a hole under fill-rule="evenodd".
+  function pathData(geometry, project) {
+    var closed = geometry.type === 'Polygon' || geometry.type === 'MultiPolygon';
+    var runs;
+    if (geometry.type === 'MultiPolygon') {
+      runs = [];
+      geometry.coordinates.forEach(function (polygon) {
+        polygon.forEach(function (ring) { runs.push(ring); });
+      });
+    } else if (geometry.type === 'Polygon' || geometry.type === 'MultiLineString') {
+      runs = geometry.coordinates;
+    } else {
+      runs = [geometry.coordinates];
+    }
+    return runs.map(function (run) {
+      return 'M' + run.map(project).join('L') + (closed ? 'Z' : '');
+    }).join('');
+  }
+
+  // Taken from def.style, the same object the live map draws from, so the
+  // report keeps ignoring the user's width and opacity sliders.
+  function svgStyle(style) {
+    var attrs = ' stroke="' + style.color + '"' +
+                ' stroke-width="' + (style.weight || 1) + '"';
+    if (style.dashArray) {
+      attrs += ' stroke-dasharray="' + style.dashArray + '"';
+    }
+    if (style.fill) {
+      attrs += ' fill="' + (style.fillColor || style.color) + '"' +
+               ' fill-opacity="' + (style.fillOpacity || 0) + '"' +
+               ' fill-rule="evenodd"';
+    } else {
+      attrs += ' fill="none"';
+    }
+    return attrs;
+  }
+
+  function reportSvg(subject, label) {
+    var frame = reportFrame(subject);
+    var project = makeProjector(frame);
+
+    // LAYER_DEFS order, so the first layer lands at the bottom exactly as it
+    // does on screen. Every layer is drawn whatever the legend switches say.
+    var groups = LAYER_DEFS.map(function (def) {
+      var paths = DATA[def.id].features.filter(function (feature) {
+        var box = bboxOf(feature);
+        return box[0] <= frame[2] && box[2] >= frame[0] &&
+               box[1] <= frame[3] && box[3] >= frame[1];
+      }).map(function (feature) {
+        return '<path d="' + pathData(feature.geometry, project) + '"/>';
+      }).join('');
+      return '<g' + svgStyle(def.style) + '>' + paths + '</g>';
+    }).join('');
+
+    // The subject goes last so its outline sits above everything it overlaps.
+    //
+    // Drawn as a white casing under a near-black line rather than in a colour of
+    // its own. Every hue that would read as "highlight" is already a layer here:
+    // grey is the ward mesh the subject usually sits in, near-black on its own is
+    // the GBA boundary, and the old accent blue was mistaken for a primary drain.
+    // No layer has a halo, so the casing is what makes this unmistakable.
+    var subjectPath = pathData(subject.geometry, project);
+    var outline =
+      '<path d="' + subjectPath + '" fill="none" stroke="#ffffff" stroke-width="6"/>' +
+      '<path d="' + subjectPath + '" fill="none" stroke="#14202b" stroke-width="3"/>';
+
+    // A feature is drawn whenever its bounding box touches the frame, so a long
+    // drain or a big neighbouring ward can run well past it. The viewport would
+    // crop that anyway, but clipping explicitly keeps the map cropped if the
+    // SVG is later opened in a drawing tool.
+    var box = '<rect width="' + REPORT_W + '" height="' + REPORT_H + '"';
+
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
+      REPORT_W + ' ' + REPORT_H + '" role="img">' +
+      '<title>Map of ' + esc(label) + '</title>' +
+      '<defs><clipPath id="report-frame">' + box + '/></clipPath></defs>' +
+      box + ' fill="#f4f7f9"/>' +
+      '<g clip-path="url(#report-frame)" ' +
+      'stroke-linejoin="round" stroke-linecap="round">' +
+      groups + outline +
+      '</g></svg>';
+  }
+
+  function lakesInWard(layerId, wardName) {
+    if (!wardName) return [];
+    return DATA[layerId].features.filter(function (feature) {
+      return String(feature.properties.ward_name || '').trim() === wardName;
+    });
+  }
+
+  function metaTable(rows) {
+    return '<table class="meta">' + rows.map(function (row) {
+      return '<tr><th>' + row[0] + '</th><td>' + cell(row[1]) + '</td></tr>';
+    }).join('') + '</table>';
+  }
+
+  function lakeTable(title, features, statusField, statusLabel, emptyText) {
+    if (!features.length) {
+      return '<h2>' + title + '</h2><p class="empty">' + emptyText + '</p>';
+    }
+    var rows = features.map(function (feature) {
+      var props = feature.properties;
+      var acres = props.area_acres !== undefined ? props.area_acres.toFixed(2) : '&mdash;';
+      return '<tr><td>' + cell(props.name) + '</td>' +
+             '<td class="num">' + acres + '</td>' +
+             '<td>' + cell(props[statusField]) + '</td></tr>';
+    }).join('');
+    return '<h2>' + title + ' <span class="count">' + features.length + '</span></h2>' +
+      '<table class="grid">' +
+      '<thead><tr><th>Name</th><th class="num">Acres</th><th>' + statusLabel + '</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+      '<tfoot><tr><th>Total</th><th class="num">' +
+      sumOf(features, 'area_acres').toFixed(2) + '</th><th></th></tr></tfoot></table>';
+  }
+
+  function reportHtml(hit) {
+    var props = hit.feature.properties;
+    var isWard = hit.def.id === 'gba_wards';
+    var wardName = String(props.ward_name || '').trim();
+
+    var subject;
+    if (isWard) {
+      subject = metaTable([
+        ['Ward', props.ward_name],
+        ['Corporation', props.Corporation],
+        ['Valley', listText(props.valley)]
+      ]);
+    } else {
+      var statusValue = hit.def.id === 'lakes_existing' ? props.status : props.current_use;
+      subject = metaTable([
+        ['Water body', props.name],
+        ['Type', hit.def.kind],
+        ['Status', statusValue],
+        ['Area', props.area_acres !== undefined ? props.area_acres.toFixed(2) + ' acres' : null],
+        ['Ward', props.ward_name],
+        ['Corporation', props.Corporation],
+        ['Valley', listText(props.valley)]
+      ]);
+    }
+
+    var context;
+    if (wardName) {
+      var heading = isWard ? '' :
+        '<p class="context-note">Other water bodies recorded in ' + esc(wardName) + '</p>';
+      context = heading +
+        lakeTable('Existing water bodies', lakesInWard('lakes_existing', wardName),
+                  'status', 'Status', 'No existing water bodies recorded in this ward.') +
+        lakeTable('Lost water bodies', lakesInWard('lakes_lost', wardName),
+                  'current_use', 'Now occupied by',
+                  'No lost water bodies recorded in this ward.');
+    } else {
+      context = '<p class="empty">No ward is recorded for this water body, so there is no ' +
+                'ward ' +
+                'context to report. It lies outside the GBA ward boundaries.</p>';
+    }
+
+    var framed = wardName || (isWard ? props.ward_name : hit.label);
+    // Nothing here can fail or block, so there is no missing-picture case.
+    var picture = '<figure>' + reportSvg(reportSubjectFeature(hit), framed) +
+      '<figcaption>Every layer shown, whatever the legend switches say. ' +
+      'Subject outlined in black.' +
+      '</figcaption></figure>';
+
+
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" />' +
+      '<title>' + esc(hit.label) + ' &mdash; water report</title><style>' +
+      '@page { size: A4; margin: 14mm; }' +
+      'body { font: 12px/1.5 "Segoe UI", Roboto, system-ui, sans-serif; color: #14202b;' +
+      ' max-width: 780px; margin: 0 auto; padding: 24px 18px; }' +
+      'h1 { margin: 0 0 2px; font-size: 22px; }' +
+      '.kind { margin-bottom: 16px; font-size: 11px; text-transform: uppercase;' +
+      ' letter-spacing: 0.08em; color: #5b6b7a; }' +
+      'h2 { margin: 22px 0 8px; font-size: 14px; }' +
+      '.count { display: inline-block; margin-left: 4px; padding: 1px 7px; font-size: 11px;' +
+      ' color: #fff; background: #0b6ea8; border-radius: 9px; vertical-align: middle; }' +
+      'table { width: 100%; border-collapse: collapse; }' +
+      '.meta th { width: 30%; padding: 5px 10px 5px 0; font-weight: 400; text-align: left;' +
+      ' color: #5b6b7a; border-bottom: 1px solid #eef2f5; }' +
+      '.meta td { padding: 5px 0; border-bottom: 1px solid #eef2f5; }' +
+      '.grid th, .grid td { padding: 6px 8px; text-align: left;' +
+      ' border-bottom: 1px solid #eef2f5; }' +
+      '.grid thead th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;' +
+      ' color: #5b6b7a; border-bottom: 1px solid #c8d2da; }' +
+      '.grid tfoot th { border-top: 1px solid #c8d2da; border-bottom: 0; }' +
+      '.num { text-align: right; font-variant-numeric: tabular-nums; }' +
+      '.empty { padding: 10px 12px; color: #5b6b7a; background: #f4f7f9;' +
+      ' border-radius: 6px; font-size: 12px; }' +
+      '.context-note { margin: 22px 0 0; font-size: 12px; color: #5b6b7a; }' +
+      'figure { margin: 16px 0 4px; }' +
+      'figcaption { margin-top: 4px; font-size: 10px; color: #5b6b7a; }' +
+      'svg { display: block; width: 100%; height: auto; border: 1px solid #c8d2da;' +
+      ' border-radius: 6px; }' +
+      'footer { margin-top: 26px; padding-top: 10px; font-size: 10px; color: #5b6b7a;' +
+      ' border-top: 1px solid #eef2f5; }' +
+      'button { margin-bottom: 18px; padding: 7px 14px; font: inherit; font-size: 13px;' +
+      ' font-weight: 600; color: #fff; background: #0b6ea8; border: 0; border-radius: 6px;' +
+      ' cursor: pointer; }' +
+      '@media print { button { display: none; } body { padding: 0; } }' +
+      '</style></head><body>' +
+      '<button type="button" onclick="window.print()">Print / Save as PDF</button>' +
+      '<h1>' + esc(hit.label) + '</h1>' +
+      '<div class="kind">' + hit.def.kind + ' report</div>' +
+      subject + picture + context +
+      // No Esri credit here: the report map is drawn from the data alone and
+      // carries no basemap tiles. The live map credits Esri on its own.
+      '<footer>A project by Sonia Das. Data credits: Building a Resilient Bengaluru ' +
+      'website (accessed 23 May 2026). ' +
+      'Generated ' + new Date().toLocaleString() + '.</footer>' +
+      '</body></html>';
+  }
+
+  function buildHelpDialog() {
+    var dialog = document.getElementById('help');
+
+    document.getElementById('help-open').addEventListener('click', function () {
+      // showModal gives the backdrop and Escape-to-close for free; the
+      // fallback is for any browser without it.
+      if (dialog.showModal) dialog.showModal();
+      else dialog.setAttribute('open', '');
+    });
+
+    document.getElementById('help-close').addEventListener('click', function () {
+      if (dialog.close) dialog.close();
+      else dialog.removeAttribute('open');
+    });
+  }
+
+  function buildReportButton() {
+    document.getElementById('report').addEventListener('click', function () {
+      if (!selected) return;
+      // Opened inside the click handler so the browser treats it as
+      // user-initiated and does not block it.
+      var win = window.open('', '_blank');
+      if (!win) {
+        document.getElementById('selected-note').innerHTML =
+          'The report window was blocked. Allow pop-ups for this page, then try again.';
+        return;
+      }
+
+      // The report is built synchronously, so it goes out in one write with
+      // no "generating" placeholder in between.
+      win.document.open();
+      win.document.write(reportHtml(selected));
+      win.document.close();
+    });
+  }
+
+  // ------------------------------------------------------------------ init
+  setBasemap('streets');
+  buildLegend();
+  buildReset();
+  buildSearch();
+  buildReportButton();
+  buildHelpDialog();
+  refresh();
+
+  fitDefault();
+  showCoordinates(map.getCenter());
+}());
+</script>
+</body>
+</html>
