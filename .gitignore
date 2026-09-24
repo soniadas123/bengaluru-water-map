@@ -3,9 +3,13 @@
 ~$*
 ~WRL*.tmp
 
-# Field survey forms. The map is built from the GeoJSONs alone -- build_map.py
-# never reads these, so they are not part of what this repository publishes.
+# Citizen audit forms exported from KoboToolbox. build_map.py reads them for the
+# audit layers, but they stay unpublished: they hold unvalidated rows, Kobo IDs
+# and photo links. The page carries only the cleaned, validated points.
 data/*.csv
+
+# Reports and working PDFs, including MOD Foundation's BSF report.
+*.pdf
 
 # Analysis material: QGIS project, classification rasters, figures, screenshots.
 *.png

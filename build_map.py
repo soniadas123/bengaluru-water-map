@@ -5,19 +5,23 @@ Reads the GeoJSON files in data/, simplifies and cleans them with GeoPandas,
 then injects the result into template.html to produce a single index.html that
 can be opened by double-clicking -- no web server, no Mapbox account.
 
-Run:  python build_map.py
+Run:  python build_map.py                    writes index.html
+      python build_map.py next/index.html    writes the page somewhere else
 """
 
 import json
 import re
+import sys
 from pathlib import Path
 
 import geopandas as gpd
+import pandas as pd
 
 BASE = Path(__file__).parent
 DATA_DIR = BASE / "data"
 TEMPLATE = BASE / "template.html"
-OUTPUT = BASE / "index.html"
+# The page to write; a path on the command line, relative to this folder, overrides it.
+OUTPUT = BASE / (sys.argv[1] if len(sys.argv) > 1 else "index.html")
 
 # UTM 43N. Bengaluru sits in this zone, so simplification tolerances and any
 # measurements are in real metres rather than degrees.
@@ -30,6 +34,12 @@ SIMPLIFY_M = 5
 # store 15, which is most of the file size.
 COORD_DECIMALS = 6
 
+SQ_M_PER_ACRE = 4046.8564224
+
+# A lake piece inside a ward smaller than this is a sliver where the lake and
+# ward outlines disagree slightly, not real lake area, so it is left out.
+MIN_ACRES = 0.1
+
 # Strings the source data uses to mean "no value".
 EMPTY_VALUES = {"", "None", "nan", "NaN", "<NA>", "null"}
 
@@ -37,7 +47,7 @@ EMPTY_VALUES = {"", "None", "nan", "NaN", "<NA>", "null"}
 # and so on. That is an auto-generated placeholder, not a name, so treat it as
 # missing. The trailing digits are required: a bare "Unknown" is the recorded
 # name of 21 lost lakes and must survive.
-PLACEHOLDER_PATTERN = re.compile(r"^unknown\d+$", re.IGNORECASE)
+PLACEHOLDER_PATTERN = re.compile(r"^unknown\s*\d+$", re.IGNORECASE)
 
 # The same lake status written two different ways.
 STATUS_FIXES = {
@@ -93,6 +103,57 @@ LAYERS = [
         False,
     ),
 ]
+
+
+# Citizen audit forms exported from KoboToolbox: name, filename, and the
+# columns to keep, mapped to the name used on the map. Form 3 (resident
+# interviews) has no coordinates, so it is not mapped.
+AUDITS = [
+    (
+        "audit_structure",
+        "mod-foundation_form-1 (1).csv",
+        {
+            "wall_condition": "wall_condition", "wall_height": "wall_height",
+            "fence": "fence", "wall_material": "wall_material",
+            "bridge_type": "bridge_type", "bridge_condition": "bridge_condition",
+            "elec_condition": "elec_condition", "cables_condition": "cables_condition",
+            "manholes_condition": "manholes_condition",
+            "team_name": "team", "_drain": "drain",
+            "_secondarydrain": "secondary_drain", "date_time": "date",
+            "rhs_lhs": "side",
+        },
+    ),
+    (
+        "audit_water",
+        "mod-foundation_form-2.csv",
+        {
+            "water_stagnant": "water_stagnant", "water_colour": "water_colour",
+            "water_turbidity": "water_turbidity", "water_smell": "water_smell",
+            "water_contamination": "water_contamination", "inlets": "inlets",
+            "unauthorised_inlets": "unauthorised_inlets",
+            "sw_inside": "sw_inside", "sw_inside_type": "sw_inside_type",
+            "sw_outside": "sw_outside",
+            "community_engagement": "community_engagement",
+            "_team_name": "team", "_drain": "drain",
+            "_drain_secondary": "secondary_drain", "start": "date",
+            "rhs_lhs": "side",
+        },
+    ),
+]
+
+# The same audit answer written in different cases across form versions.
+AUDIT_FIXES = {
+    "Cannot See": "Cannot see",
+    "Cannot see or smell": "Cannot see",
+    "Froth Or Foam Visible": "Froth or foam visible",
+    "Solid Particles Or Oily Film On Water": "Solid particles or oily film on water",
+    "Commercial Mostly": "Commercial (mostly)",
+    "Strong Smell Not Necessarily Sewage": "Strong smell, not necessarily sewage",
+    "yes": "Yes",
+    "no": "No",
+    "rhs": "Right hand side (RHS)",
+    "lhs": "Left hand side (LHS)",
+}
 
 
 def round_coords(obj, decimals=COORD_DECIMALS):
@@ -188,12 +249,101 @@ def prepare_layer(name, filename, keep, is_polygon, wards):
     return collection
 
 
+def prepare_audit(name, filename, columns, wards):
+    """Validated citizen audit submissions as a GeoJSON point collection."""
+    # Kobo exports these files in the Windows code page, not UTF-8.
+    df = pd.read_csv(DATA_DIR / filename, encoding="cp1252", dtype=str)
+
+    # Only submissions the team marked as checked. A copy of the header row sits
+    # inside the data; its lat/long are text, so the number check drops it too.
+    lat = pd.to_numeric(df["lat"], errors="coerce")
+    lon = pd.to_numeric(df["long"], errors="coerce")
+    keep = (df["_validation_status"].str.strip() == "yes") & \
+        lat.between(12.6, 13.4) & lon.between(77.2, 78.0)
+    df = df[keep]
+
+    df = df[list(columns)].rename(columns=columns)
+    for column in df.columns:
+        df[column] = (df[column].str.strip()
+                      .str.replace(r"\s+", " ", regex=True)
+                      .replace(AUDIT_FIXES))
+    # Keep just the day: form 1 stores "2026/02/22 11:04:00+0530", form 2 an ISO time.
+    df["date"] = df["date"].str[:10].str.replace("/", "-")
+
+    points = gpd.GeoDataFrame(
+        df, geometry=gpd.points_from_xy(lon[keep], lat[keep]), crs=4326
+    )
+    located = gpd.sjoin(points.to_crs(METRIC_CRS), wards[["ward_name", "geometry"]],
+                        how="left", predicate="within")
+    # A point exactly on a shared ward edge can match two wards; keep the first.
+    located = located[~located.index.duplicated()]
+    points["ward_name"] = located["ward_name"]
+
+    collection = json.loads(points.to_json(drop_id=True))
+    for feature in collection["features"]:
+        feature["properties"] = clean_properties(feature["properties"])
+        feature["geometry"]["coordinates"] = round_coords(
+            feature["geometry"]["coordinates"]
+        )
+
+    print(f"  {name:18s} {len(collection['features']):5d} validated points")
+    return collection
+
+
+def lake_area_by_ward(name, filename, wards):
+    """Area of each lake that lies inside each ward, in acres.
+
+    Returns {ward_name: [{"i": row, "acres": area}, ...]}, largest first. "i" is
+    the lake's position in DATA[name].features, since prepare_layer keeps every
+    row in file order.
+    """
+    lakes = gpd.read_file(DATA_DIR / filename).to_crs(METRIC_CRS)
+    lakes["i"] = range(len(lakes))
+    lakes["geometry"] = lakes.geometry.make_valid()
+
+    wards = wards[["ward_name", "geometry"]].copy()
+    wards["geometry"] = wards.geometry.make_valid()
+
+    pieces = gpd.overlay(lakes[["i", "geometry"]], wards, how="intersection",
+                         keep_geom_type=True)
+    pieces["acres"] = pieces.geometry.area / SQ_M_PER_ACRE
+    kept = pieces[pieces["acres"] >= MIN_ACRES]
+
+    by_ward = {}
+    for row in kept.itertuples():
+        # A lake cut into several parts by the ward edge adds up per ward.
+        entries = by_ward.setdefault(row.ward_name.strip(), {})
+        entries[row.i] = entries.get(row.i, 0) + row.acres
+    result = {
+        ward: [{"i": int(i), "acres": round(acres, 2)}
+               for i, acres in sorted(entries.items(), key=lambda e: -e[1])]
+        for ward, entries in by_ward.items()
+    }
+
+    split = int((kept.groupby("i")["ward_name"].nunique() > 1).sum())
+    print(f"  {name:18s} {len(kept):5d} lake-in-ward pieces kept, "
+          f"{len(pieces) - len(kept)} under {MIN_ACRES} acres dropped, "
+          f"{split} lakes split across wards")
+    return result
+
+
 def main():
     print("Preparing layers")
     wards = load_wards()
     layers = {
         name: prepare_layer(name, filename, keep, is_polygon, wards)
         for name, filename, keep, is_polygon in LAYERS
+    }
+
+    print("Preparing citizen audits")
+    for name, filename, columns in AUDITS:
+        layers[name] = prepare_audit(name, filename, columns, wards)
+
+    print("Measuring lake area inside each ward")
+    layers["ward_lakes"] = {
+        name: lake_area_by_ward(name, filename, wards)
+        for name, filename, _, _ in LAYERS
+        if name in ("lakes_existing", "lakes_lost")
     }
 
     payload = json.dumps(layers, separators=(",", ":"), ensure_ascii=False)
@@ -204,10 +354,11 @@ def main():
     if "/*__DATA__*/" not in template:
         raise SystemExit("template.html is missing the /*__DATA__*/ placeholder")
     html = template.replace("/*__DATA__*/", f"const DATA = {payload};")
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(html, encoding="utf-8")
 
     size_mb = OUTPUT.stat().st_size / 1048576
-    print(f"\nWrote {OUTPUT.name} ({size_mb:.2f} MB)")
+    print(f"\nWrote {OUTPUT.relative_to(BASE)} ({size_mb:.2f} MB)")
 
 
 if __name__ == "__main__":

@@ -222,6 +222,16 @@
 
   .swatch { flex: none; width: 20px; height: 12px; border-radius: 2px; }
 
+  /* Audit layers: indicator menu and colour key under the layer name. */
+  .point-key { margin: 6px 0 0 21px; font-size: 12px; }
+  .point-key select { width: 100%; margin-bottom: 5px; font: inherit; }
+  .key-row { display: flex; align-items: center; gap: 6px; padding: 1px 0; }
+  .key-row .dot {
+    flex: none; width: 10px; height: 10px; border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+  }
+  .key-row .count { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+
   /* Collapsible sections. The summary is styled to match the .section > h2
      headings so a collapsed and an ordinary section read the same. */
   details.collapsible > summary {
@@ -456,8 +466,8 @@
       <input type="text" id="search" placeholder="Water body or ward name" autocomplete="off" />
       <div id="results"></div>
     </div>
-    <div id="selected-note">Search, or click a ward or water body on the map. The layer
-      has to be switched on in the legend for a click to find it.</div>
+    <div id="selected-note">Click on a ward on the map, or search. The ward layer has to
+      be switched on in the legend for a click to find it.</div>
     <button id="report" disabled>Generate report</button>
     <button class="link" id="reset">Reset</button>
   </div>
@@ -493,23 +503,37 @@
     <p>Each layer in the legend has a checkbox to show or hide it, and a colour key drawn in
       that layer's own colour and line thickness, so the legend always matches the map.</p>
     <p>The number beside a layer is how many features it holds.</p>
+    <p>Hover over an existing or lost water body to see its name and area; click it for
+      full details.</p>
+    <p>The two <b>Audit</b> layers are points recorded by volunteers in MOD Foundation's
+      citizen audits of stormwater drains in 2026. Only submissions the team validated are
+      shown. When an audit layer is on, the menu under it picks what the dot colours show,
+      and the key counts the points for each answer. Click a dot for everything recorded
+      there.</p>
     <p><b>Secondary drains</b> and <b>Corporations</b> start switched off. There are 2,224
       secondary drain segments and drawing them all slows the first paint.</p>
 
-    <h3>Finding a water body or ward</h3>
-    <p>Type at least two characters in the search box to match water body and ward names, then
-      click a result to fly to it. You can also <b>click a ward or a water body directly on the
-      map</b> — but the layer has to be switched on in the legend for a click to find it.</p>
+    <h3>Finding a ward</h3>
+    <p><b>Click on a ward directly on the map</b> to pick it. The ward layer has to be switched
+      on in the legend for a click to find it. You can also type at least two characters in the
+      search box to match ward names, then click a result to fly to it.</p>
     <p>Clicking a drain shows its popup without changing what you have selected, because a
       report covers a ward or a water body and a drain often runs through several wards.</p>
     <p><b>Reset</b> under the report button clears the current pick and empties the search box.
       It leaves the map where it is and the layer switches as you set them.</p>
 
     <h3>Generating a report</h3>
-    <p>Pick a ward or a water body, by search or by clicking it, then press
+    <p>Pick a ward, by clicking it or by search, then press
       <b>Generate report</b>. A new window opens with the details, a map and tables of the
       existing and lost water bodies in that ward. Use <b>Print / Save as PDF</b> in that
       window to keep it.</p>
+    <p>Where citizens have audited drains in the ward, the report also shows what they
+      found (water colour, smell, garbage, unauthorised inlets, retaining walls) with a
+      short note on what each answer usually means, and marks the audit points on its
+      map.</p>
+    <p>The tables give the area of each water body that lies inside the ward. A water body
+      crossing a ward boundary is split between the wards, and pieces under 0.1 acres are
+      left out.</p>
     <p class="callout"><b>The report draws its own map, so it does not matter what the screen
       is showing when you press the button.</b> It always frames the whole ward with every layer
       switched on, and outlines the subject in blue.</p>
@@ -568,13 +592,13 @@
     },
     {
       id: 'lakes_lost', label: 'Lost water bodies', kind: 'Lost water body',
-      on: true, selectable: true,
+      on: true, selectable: true, tooltip: true,
       style: { color: '#b91c1c', weight: 1, fillColor: '#ef4444', fillOpacity: 0.55, fill: true },
       fields: ['name', 'area_acres', 'year', 'current_use', 'ward_name', 'Corporation', 'valley', 'subvalley']
     },
     {
       id: 'lakes_existing', label: 'Existing water bodies', kind: 'Existing water body',
-      on: true, selectable: true,
+      on: true, selectable: true, tooltip: true,
       style: { color: '#0369a1', weight: 1, fillColor: '#0ea5e9', fillOpacity: 0.7, fill: true },
       fields: ['name', 'area_acres', 'status', 'custodian', 'Category', 'ward_name', 'Corporation', 'valley', 'subvalley']
     },
@@ -587,8 +611,120 @@
       id: 'primarydrains', label: 'Primary drains', kind: 'Primary drain', on: true,
       style: { color: '#1d4ed8', weight: 2.6, fill: false },
       fields: ['Drain num', 'length_m', 'ward_name', 'Corporation', 'valley', 'subvalley']
+    },
+    // Citizen audit points. One indicator at a time sets the dot colours; each
+    // value is [answer as recorded, colour, short label for the key, what the
+    // answer usually means]. Indicators with report: true also appear, with their
+    // meanings, in the ward report.
+    {
+      id: 'audit_structure', label: 'Audit: drain structure', kind: 'Citizen audit point',
+      on: false, points: true,
+      fields: ['wall_condition', 'wall_height', 'wall_material', 'fence', 'bridge_type',
+               'bridge_condition', 'elec_condition', 'cables_condition', 'manholes_condition',
+               'side', 'team', 'date', 'ward_name'],
+      indicators: [
+        { field: 'wall_condition', label: 'Retaining wall', report: true, values: [
+          ['Broken in some places', '#dc2626', 'Broken in places',
+           'The drain edge can erode or collapse, and gaps let garbage in and make the edge unsafe.'],
+          ['Retaining wall does not exist', '#f59e0b', 'No retaining wall',
+           'An unlined edge can erode in heavy rain and is easy to encroach on or dump into.'],
+          ['Retaining wall intact throughout the stretch', '#16a34a', 'Intact',
+           'The drain edge is holding along this stretch.']] },
+        { field: 'manholes_condition', label: 'Manholes in the drain', values: [
+          ['Yes', '#dc2626', 'Yes'], ['No', '#16a34a', 'No'], ['Cannot see', '#9ca3af', 'Cannot see']] },
+        { field: 'cables_condition', label: 'Cables across the drain', values: [
+          ['Yes', '#dc2626', 'Yes'], ['No', '#16a34a', 'No'], ['Cannot see', '#9ca3af', 'Cannot see']] },
+        { field: 'elec_condition', label: 'Electricity lines beside the drain', values: [
+          ['Yes', '#f59e0b', 'Yes'], ['No', '#16a34a', 'No']] }
+      ]
+    },
+    {
+      id: 'audit_water', label: 'Audit: water and waste', kind: 'Citizen audit point',
+      on: false, points: true,
+      fields: ['water_colour', 'water_smell', 'water_turbidity', 'water_stagnant',
+               'water_contamination', 'inlets', 'unauthorised_inlets', 'sw_inside',
+               'sw_inside_type', 'sw_outside', 'community_engagement',
+               'side', 'team', 'date', 'ward_name'],
+      indicators: [
+        { field: 'water_colour', label: 'Water colour', report: true, values: [
+          ['Black', '#1f2937', 'Black',
+           'Usually raw sewage, or rotting matter in water with little oxygen. The most ' +
+           'common sign that sewage is getting into the drain.'],
+          ['Greenish', '#65a30d', 'Greenish',
+           'Algae growing, fed by nutrients that mostly come from sewage. Often seen in ' +
+           'slow or still water.'],
+          ['Yellow', '#eab308', 'Yellow',
+           'Can point to waste from industries, workshops or commercial kitchens.'],
+          ['Milky', '#e5e7eb', 'Milky',
+           'Often soaps and detergents from grey water, or waste from small industries.'],
+          ['Clear', '#38bdf8', 'Clear',
+           'No visible discolouration. Clear water can still be polluted.'],
+          ['Other Colour', '#7c3aed', 'Other colour',
+           'Unusual colours usually come from industrial waste; the BSF report records ' +
+           'blue water from a textile mill near Kengeri.'],
+          ['Cannot see', '#9ca3af', 'Cannot see',
+           'The drain was dry or covered, or the water could not be seen.']] },
+        { field: 'water_smell', label: 'Smell', report: true, values: [
+          ['Strong smell of sewage (unable to stand near the SWD)', '#dc2626', 'Strong sewage smell',
+           'Sewage is entering the drain, usually through unauthorised pipes or leaking ' +
+           'sewer lines. A health risk for people living alongside.'],
+          ['Strong smell, not necessarily sewage', '#f97316', 'Strong smell, not sewage',
+           'May come from chemicals, rotting garbage or dead matter in the drain.'],
+          ['Less odour (I am able to stand near the SWD)', '#f59e0b', 'Some odour',
+           'Some contamination, but less severe.'],
+          ['No odour', '#16a34a', 'No odour', 'No sign of contamination by smell.'],
+          ['Cannot see', '#9ca3af', 'Could not tell', 'The auditor could not judge the smell.']] },
+        { field: 'sw_inside', label: 'Solid waste inside the drain', report: true, values: [
+          ['Yes', '#dc2626', 'Yes',
+           'Garbage narrows the drain and blocks the flow, which adds to local flooding.'],
+          ['No', '#16a34a', 'No', 'No garbage seen in the drain here.'],
+          ['Cannot see', '#9ca3af', 'Cannot see', 'The inside of the drain could not be seen.']] },
+        { field: 'unauthorised_inlets', label: 'Unauthorised inlets', report: true, values: [
+          ['Yes', '#dc2626', 'Yes',
+           'Pipes are letting sewage or grey water into a drain meant only for rainwater.'],
+          ['No', '#16a34a', 'No', 'No such pipes seen here.'],
+          ['Cannot see', '#9ca3af', 'Cannot see', 'The drain walls could not be seen.']] },
+        { field: 'water_stagnant', label: 'Flowing or stagnant', report: true, values: [
+          ['Stagnant', '#dc2626', 'Stagnant',
+           'Water is not moving, often because of silt, garbage or blockages. Still water ' +
+           'breeds mosquitoes and lets pollution build up.'],
+          ['Flowing', '#2563eb', 'Flowing', 'The drain is carrying water along.'],
+          ['Cannot see', '#9ca3af', 'Cannot see', 'The water could not be seen.']] }
+      ]
     }
   ];
+
+  // Dot colour for an answer the active indicator has no colour for.
+  var OTHER_COLOUR = '#cbd5e1';
+
+  LAYER_DEFS.forEach(function (def) {
+    if (!def.points) return;
+    def.active = 0;
+    // Only used by the legend swatch and to keep def.style defined everywhere.
+    def.style = { color: '#ffffff', weight: 1, fill: true,
+                  fillColor: def.indicators[0].values[0][1], fillOpacity: 0.9 };
+  });
+
+  // The [answer, colour, label, meaning] entry for a point's answer, if listed.
+  function valueFor(indicator, props) {
+    return indicator.values.filter(function (value) {
+      return value[0] === props[indicator.field];
+    })[0];
+  }
+
+  function valueColour(indicator, props) {
+    var match = valueFor(indicator, props);
+    return match ? match[1] : OTHER_COLOUR;
+  }
+
+  function pointColour(def, props) {
+    return valueColour(def.indicators[def.active], props);
+  }
+
+  function pointStyle(def, feature) {
+    return { color: '#ffffff', weight: 1, fillColor: pointColour(def, feature.properties),
+             fillOpacity: 0.9 };
+  }
 
   var FIELD_LABELS = {
     name: 'Name', Name: 'Name', ward_name: 'Ward', Corporation: 'Corporation',
@@ -597,7 +733,17 @@
     year: 'Last mapped', current_use: 'Now occupied by',
     'Drain num': 'Drain number', 'sec_id': 'Segment ID',
     'pri_Drain num': 'Feeds into primary drain',
-    length_m: 'Length'
+    length_m: 'Length',
+    wall_condition: 'Retaining wall', wall_height: 'Wall height (ft)',
+    wall_material: 'Wall material', fence: 'Fence', bridge_type: 'Bridge',
+    bridge_condition: 'Bridge condition', elec_condition: 'Electricity lines beside drain',
+    cables_condition: 'Cables across drain', manholes_condition: 'Manholes in drain',
+    water_colour: 'Water colour', water_smell: 'Smell', water_turbidity: 'Turbidity',
+    water_stagnant: 'Flowing or stagnant', water_contamination: 'Contamination',
+    inlets: 'Stormwater inlets', unauthorised_inlets: 'Unauthorised inlets',
+    sw_inside: 'Solid waste inside', sw_inside_type: 'Type of waste inside',
+    sw_outside: 'Solid waste outside', community_engagement: 'Signs of community care',
+    side: 'Side of drain', team: 'Audit team', date: 'Audit date'
   };
 
   // Both basemaps come from Esri. OpenStreetMap's own tile servers refuse
@@ -744,7 +890,8 @@
     if (field === 'valley' || field === 'subvalley' || field === 'ward_name') {
       return listText(value);
     }
-    return String(value);
+    // Audit answers are free text typed in the field, so escape them.
+    return esc(value);
   }
 
   function headingOf(props, def) {
@@ -754,6 +901,10 @@
       if (props['Drain num']) return 'Drain ' + props['Drain num'];
       if (props.sec_id) return def.kind + ' ' + props.sec_id;
       return def.kind;
+    }
+    if (def.points) {
+      var drain = props.drain || props.secondary_drain;
+      return 'Audit point' + (drain ? ', drain ' + drain : '');
     }
     return props.name || props.ward_name || props.Name || def.kind;
   }
@@ -774,18 +925,18 @@
            '<table>' + rows + '</table></div>';
   }
 
-  function sumOf(features, field) {
-    return features.reduce(function (total, feature) {
-      return total + (feature.properties[field] || 0);
-    }, 0);
+  // Shown on hover over a water body: its name and whole-lake area.
+  function tooltipHtml(def, props) {
+    var area = props.area_acres !== undefined ? formatValue('area_acres', props.area_acres) : '';
+    return '<b>' + esc(headingOf(props, def)) + '</b>' + (area ? '<br>' + area : '');
   }
 
   function layerById(id) {
     return LAYER_DEFS.filter(function (def) { return def.id === id; })[0];
   }
 
-  var EMPTY_NOTE = 'Search, or click a ward or water body on the map. The layer ' +
-    'has to be switched on in the legend for a click to find it.';
+  var EMPTY_NOTE = 'Click on a ward on the map, or search. The ward layer has to ' +
+    'be switched on in the legend for a click to find it.';
 
   // The one place that decides what a report is about. Reached from a search
   // result and from clicking a ward or water body on the map.
@@ -830,10 +981,19 @@
       // Left interactive they would swallow every click before it reached the
       // ward underneath, so they are excluded from hit testing entirely.
       interactive: def.interactive !== false,
-      style: function () { return def.style; },
+      style: function (feature) {
+        return def.points ? pointStyle(def, feature) : def.style;
+      },
+      pointToLayer: function (feature, latlng) {
+        return L.circleMarker(latlng, { renderer: renderer, radius: 5 });
+      },
       onEachFeature: function (feature, layer) {
         if (def.interactive === false) return;
         layer.bindPopup(popupHtml(def, feature.properties));
+        // Sticky, so the tooltip follows the pointer even over a tiny lake.
+        if (def.tooltip) {
+          layer.bindTooltip(tooltipHtml(def, feature.properties), { sticky: true });
+        }
         // Clicking a ward or water body picks it as the report subject, the same way
         // a search result does. Drains and boundaries only show their popup.
         if (def.selectable) {
@@ -869,7 +1029,13 @@
     var swatch = document.getElementById('swatch-' + def.id);
     if (!swatch) return;
     var line = (def.style.dashArray ? 'dashed ' : 'solid ') + def.style.color;
-    if (def.style.fill) {
+    if (def.points) {
+      swatch.style.background = def.indicators[def.active].values[0][1];
+      swatch.style.width = '12px';
+      swatch.style.height = '12px';
+      swatch.style.margin = '0 4px';
+      swatch.style.borderRadius = '50%';
+    } else if (def.style.fill) {
       swatch.style.background = def.style.fillColor;
       swatch.style.border = Math.min(4, def.style.weight) + 'px ' + line;
       swatch.style.height = '12px';
@@ -879,6 +1045,57 @@
       swatch.style.borderBottom = Math.max(2, Math.min(8, def.style.weight)) + 'px ' + line;
       swatch.style.height = '6px';
     }
+  }
+
+  // Under an audit layer's row: a menu picking what the dot colours show, and
+  // a key of each answer's colour with how many points gave it.
+  function buildPointKey(def, row) {
+    var extra = document.createElement('div');
+    extra.className = 'point-key';
+    extra.style.display = def.on ? '' : 'none';
+
+    var select = document.createElement('select');
+    select.setAttribute('aria-label', 'Colour ' + def.label + ' by');
+    def.indicators.forEach(function (indicator, i) {
+      var option = document.createElement('option');
+      option.value = i;
+      option.textContent = indicator.label;
+      select.appendChild(option);
+    });
+    var key = document.createElement('div');
+    extra.appendChild(select);
+    extra.appendChild(key);
+
+    function drawKey() {
+      var indicator = def.indicators[def.active];
+      var features = DATA[def.id].features;
+      var other = features.length;
+      // Each row: [colour, label, number of points].
+      var entries = indicator.values.map(function (value) {
+        var count = features.filter(function (feature) {
+          return feature.properties[indicator.field] === value[0];
+        }).length;
+        other -= count;
+        return [value[1], value[2], count];
+      });
+      if (other) entries.push([OTHER_COLOUR, 'Other or not recorded', other]);
+      key.innerHTML = entries.map(function (entry) {
+        return '<div class="key-row"><span class="dot" style="background:' + entry[0] +
+               '"></span>' + esc(entry[1]) + '<span class="count">' + entry[2] +
+               '</span></div>';
+      }).join('');
+    }
+
+    select.addEventListener('change', function () {
+      def.active = Number(select.value);
+      def.layer.setStyle(function (feature) { return pointStyle(def, feature); });
+      paintSwatch(def);
+      drawKey();
+    });
+
+    drawKey();
+    row.appendChild(extra);
+    return extra;
   }
 
   function buildLegend() {
@@ -896,6 +1113,7 @@
         '</label>';
 
       var toggle = row.querySelector('input[type="checkbox"]');
+      var extra = def.points ? buildPointKey(def, row) : null;
 
       toggle.addEventListener('change', function () {
         if (toggle.checked) def.layer.addTo(map);
@@ -903,6 +1121,8 @@
         // Re-adding appends to the end of the shared renderer's draw list, so
         // rebuild everything in order to keep the layer stack correct.
         if (toggle.checked) refresh();
+        // The indicator menu and key only matter while the dots are showing.
+        if (extra) extra.style.display = toggle.checked ? '' : 'none';
       });
 
       list.appendChild(row);
@@ -1114,13 +1334,15 @@
     return attrs;
   }
 
-  function reportSvg(subject, label) {
+  // points: the ward's water audit points, drawn as dots coloured by water colour.
+  function reportSvg(subject, label, points) {
     var frame = reportFrame(subject);
     var project = makeProjector(frame);
 
     // LAYER_DEFS order, so the first layer lands at the bottom exactly as it
     // does on screen. Every layer is drawn whatever the legend switches say.
-    var groups = LAYER_DEFS.map(function (def) {
+    // The audit layers are drawn separately below, only for this ward.
+    var groups = LAYER_DEFS.filter(function (def) { return !def.points; }).map(function (def) {
       var paths = DATA[def.id].features.filter(function (feature) {
         var box = bboxOf(feature);
         return box[0] <= frame[2] && box[2] >= frame[0] &&
@@ -1143,6 +1365,16 @@
       '<path d="' + subjectPath + '" fill="none" stroke="#ffffff" stroke-width="6"/>' +
       '<path d="' + subjectPath + '" fill="none" stroke="#14202b" stroke-width="3"/>';
 
+    // Above the outline so a dot on the ward edge stays visible. A dark rim, as
+    // the milky and clear colours would vanish against the pale background.
+    var colourIndicator = layerById('audit_water').indicators[0];
+    var dots = (points || []).map(function (feature) {
+      var xy = project(feature.geometry.coordinates).split(',');
+      return '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="5" fill="' +
+             valueColour(colourIndicator, feature.properties) + '"/>';
+    }).join('');
+    dots = '<g stroke="#334155" stroke-width="1">' + dots + '</g>';
+
     // A feature is drawn whenever its bounding box touches the frame, so a long
     // drain or a big neighbouring ward can run well past it. The viewport would
     // crop that anyway, but clipping explicitly keeps the map cropped if the
@@ -1156,15 +1388,26 @@
       box + ' fill="#f4f7f9"/>' +
       '<g clip-path="url(#report-frame)" ' +
       'stroke-linejoin="round" stroke-linecap="round">' +
-      groups + outline +
+      groups + outline + dots +
       '</g></svg>';
   }
 
+  // Lakes with any part inside the ward, from the overlay build_map.py runs.
+  // Each is { feature, acres }, where acres is only the part inside this ward.
   function lakesInWard(layerId, wardName) {
     if (!wardName) return [];
-    return DATA[layerId].features.filter(function (feature) {
-      return String(feature.properties.ward_name || '').trim() === wardName;
+    return (DATA.ward_lakes[layerId][wardName] || []).map(function (entry) {
+      return { feature: DATA[layerId].features[entry.i], acres: entry.acres };
     });
+  }
+
+  // The acres of one lake inside one ward, or undefined when it has no piece
+  // of 0.1 acres or more there.
+  function acresInWard(layerId, wardName, feature) {
+    var match = lakesInWard(layerId, wardName).filter(function (lake) {
+      return lake.feature === feature;
+    })[0];
+    return match ? match.acres : undefined;
   }
 
   function metaTable(rows) {
@@ -1173,23 +1416,119 @@
     }).join('') + '</table>';
   }
 
-  function lakeTable(title, features, statusField, statusLabel, emptyText) {
-    if (!features.length) {
+  function lakeTable(title, lakes, statusField, statusLabel, emptyText) {
+    if (!lakes.length) {
       return '<h2>' + title + '</h2><p class="empty">' + emptyText + '</p>';
     }
-    var rows = features.map(function (feature) {
-      var props = feature.properties;
-      var acres = props.area_acres !== undefined ? props.area_acres.toFixed(2) : '&mdash;';
+    var total = 0;
+    var rows = lakes.map(function (lake) {
+      var props = lake.feature.properties;
+      total += lake.acres;
       return '<tr><td>' + cell(props.name) + '</td>' +
-             '<td class="num">' + acres + '</td>' +
+             '<td class="num">' + lake.acres.toFixed(2) + '</td>' +
              '<td>' + cell(props[statusField]) + '</td></tr>';
     }).join('');
-    return '<h2>' + title + ' <span class="count">' + features.length + '</span></h2>' +
+    return '<h2>' + title + ' <span class="count">' + lakes.length + '</span></h2>' +
       '<table class="grid">' +
-      '<thead><tr><th>Name</th><th class="num">Acres</th><th>' + statusLabel + '</th></tr></thead>' +
+      '<thead><tr><th>Name</th><th class="num">Acres in ward</th><th>' + statusLabel + '</th></tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
       '<tfoot><tr><th>Total</th><th class="num">' +
-      sumOf(features, 'area_acres').toFixed(2) + '</th><th></th></tr></tfoot></table>';
+      total.toFixed(2) + '</th><th></th></tr></tfoot></table>';
+  }
+
+  // ------------------------------------------- citizen audits in the report
+  function auditsInWard(layerId, wardName) {
+    if (!wardName) return [];
+    return DATA[layerId].features.filter(function (feature) {
+      return feature.properties.ward_name === wardName;
+    });
+  }
+
+  // Distinct values of one field, in the order first seen.
+  function distinct(points, field) {
+    var seen = [];
+    points.forEach(function (feature) {
+      var value = feature.properties[field];
+      if (value && seen.indexOf(value) === -1) seen.push(value);
+    });
+    return seen;
+  }
+
+  function formatDate(iso) {
+    var date = new Date(iso + 'T00:00:00');
+    return isNaN(date) ? iso :
+      date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  // One table: each answer, how many of the ward's points gave it, the share,
+  // and what that answer usually means.
+  function auditTable(indicator, points) {
+    var other = points.length;
+    var rows = indicator.values.map(function (value) {
+      var count = points.filter(function (feature) {
+        return feature.properties[indicator.field] === value[0];
+      }).length;
+      other -= count;
+      return { colour: value[1], label: value[2], meaning: value[3], count: count };
+    }).filter(function (row) { return row.count > 0; });
+    if (other > 0) {
+      rows.push({ colour: OTHER_COLOUR, label: 'Other or not recorded', meaning: '', count: other });
+    }
+
+    return '<h3>' + indicator.label + '</h3>' +
+      '<table class="grid audit">' +
+      '<thead><tr><th>Answer</th><th class="num">Points</th><th class="num">Share</th>' +
+      '<th>What it usually means</th></tr></thead><tbody>' +
+      rows.map(function (row) {
+        return '<tr><td><span class="dot" style="background:' + row.colour + '"></span>' +
+               esc(row.label) + '</td>' +
+               '<td class="num">' + row.count + '</td>' +
+               '<td class="num">' + Math.round(100 * row.count / points.length) + '%</td>' +
+               '<td class="meaning">' + esc(row.meaning) + '</td></tr>';
+      }).join('') +
+      '</tbody></table>';
+  }
+
+  function auditSection(wardName) {
+    var water = auditsInWard('audit_water', wardName);
+    var structure = auditsInWard('audit_structure', wardName);
+    var title = '<h2>Citizen audits in this ward</h2>';
+
+    if (!water.length && !structure.length) {
+      return title + '<p class="empty">No citizen audits have been recorded in this ward ' +
+        'yet. To take part, see buildingaresilientbengaluru.com.</p>';
+    }
+
+    var all = water.concat(structure);
+    var dates = distinct(all, 'date').sort();
+    var drains = distinct(all, 'drain').concat(distinct(all, 'secondary_drain'));
+    function points(count, what) {
+      return count + ' ' + what + (count === 1 ? ' point' : ' points');
+    }
+    var summary = points(water.length, 'water and waste') + ' and ' +
+      points(structure.length, 'drain structure') + ', recorded by ' + distinct(all, 'team').join(', ') +
+      (dates.length ? ', ' + formatDate(dates[0]) +
+        (dates.length > 1 ? ' to ' + formatDate(dates[dates.length - 1]) : '') : '') +
+      (drains.length ? '. Drains audited: ' + drains.join(', ') : '') + '.';
+
+    // Water findings first, since they are what most readers ask about.
+    var tables = [
+      ['audit_water', 'water_colour', water], ['audit_water', 'water_smell', water],
+      ['audit_water', 'water_stagnant', water], ['audit_water', 'sw_inside', water],
+      ['audit_water', 'unauthorised_inlets', water],
+      ['audit_structure', 'wall_condition', structure]
+    ].filter(function (entry) { return entry[2].length; }).map(function (entry) {
+      var indicator = layerById(entry[0]).indicators.filter(function (candidate) {
+        return candidate.field === entry[1];
+      })[0];
+      return auditTable(indicator, entry[2]);
+    }).join('');
+
+    return title + '<p>' + esc(summary) + '</p>' + tables +
+      '<p class="context-note">These are visual checks by trained volunteers, not lab ' +
+      'tests. They show where to look more closely; water quality can only be confirmed ' +
+      'by testing, for example by the Karnataka State Pollution Control Board. The ' +
+      'explanations are general guidance.</p>';
   }
 
   function reportHtml(hit) {
@@ -1206,11 +1545,13 @@
       ]);
     } else {
       var statusValue = hit.def.id === 'lakes_existing' ? props.status : props.current_use;
+      var inWard = acresInWard(hit.def.id, wardName, hit.feature);
       subject = metaTable([
         ['Water body', props.name],
         ['Type', hit.def.kind],
         ['Status', statusValue],
-        ['Area', props.area_acres !== undefined ? props.area_acres.toFixed(2) + ' acres' : null],
+        ['Area (whole lake)', props.area_acres !== undefined ? props.area_acres.toFixed(2) + ' acres' : null],
+        ['Area in ward', inWard !== undefined ? inWard.toFixed(2) + ' acres' : null],
         ['Ward', props.ward_name],
         ['Corporation', props.Corporation],
         ['Valley', listText(props.valley)]
@@ -1226,7 +1567,11 @@
                   'status', 'Status', 'No existing water bodies recorded in this ward.') +
         lakeTable('Lost water bodies', lakesInWard('lakes_lost', wardName),
                   'current_use', 'Now occupied by',
-                  'No lost water bodies recorded in this ward.');
+                  'No lost water bodies recorded in this ward.') +
+        '<p class="context-note">Acres in ward is the part of each water body inside ' +
+        'this ward, measured from the mapped outlines. A water body that crosses a ward ' +
+        'boundary is split between the wards, and pieces under 0.1 acres are left out.</p>' +
+        auditSection(wardName);
     } else {
       context = '<p class="empty">No ward is recorded for this water body, so there is no ' +
                 'ward ' +
@@ -1235,9 +1580,12 @@
 
     var framed = wardName || (isWard ? props.ward_name : hit.label);
     // Nothing here can fail or block, so there is no missing-picture case.
-    var picture = '<figure>' + reportSvg(reportSubjectFeature(hit), framed) +
+    var wardAudits = auditsInWard('audit_water', wardName);
+    var picture = '<figure>' + reportSvg(reportSubjectFeature(hit), framed, wardAudits) +
       '<figcaption>Every layer shown, whatever the legend switches say. ' +
       'Subject outlined in black.' +
+      (wardAudits.length ? ' Dots: citizen audit points in this ward, coloured by ' +
+        'water colour (see the table below).' : '') +
       '</figcaption></figure>';
 
 
@@ -1265,6 +1613,15 @@
       '.empty { padding: 10px 12px; color: #5b6b7a; background: #f4f7f9;' +
       ' border-radius: 6px; font-size: 12px; }' +
       '.context-note { margin: 22px 0 0; font-size: 12px; color: #5b6b7a; }' +
+      'h3 { margin: 16px 0 4px; font-size: 12px; }' +
+      '.grid .num { text-align: right; }' +
+      // Fixed columns, so every audit table lines up with the one above it.
+      '.audit { table-layout: fixed; break-inside: avoid; }' +
+      '.audit th:nth-child(1) { width: 28%; }' +
+      '.audit th:nth-child(2), .audit th:nth-child(3) { width: 10%; }' +
+      '.audit .meaning { color: #3d4b58; }' +
+      '.dot { display: inline-block; width: 10px; height: 10px; margin-right: 6px;' +
+      ' border: 1px solid #334155; border-radius: 50%; vertical-align: -1px; }' +
       'figure { margin: 16px 0 4px; }' +
       'figcaption { margin-top: 4px; font-size: 10px; color: #5b6b7a; }' +
       'svg { display: block; width: 100%; height: auto; border: 1px solid #c8d2da;' +
@@ -1325,6 +1682,10 @@
   }
 
   // ------------------------------------------------------------------ init
+  // Set the view before adding any layers. Until the map has a view Leaflet
+  // holds back each layer and adds them all on load, in the legend's reverse
+  // order, which put the wards on top and hid the water bodies from the pointer.
+  fitDefault();
   setBasemap('streets');
   buildLegend();
   buildReset();
@@ -1333,7 +1694,6 @@
   buildHelpDialog();
   refresh();
 
-  fitDefault();
   showCoordinates(map.getCenter());
 }());
 </script>
