@@ -206,6 +206,38 @@
 
   #reset { display: block; margin: 9px auto 0; }
 
+  /* KML upload, under the report button */
+  #upload-wrap {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+
+  #upload-label {
+    display: block;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--accent);
+    border: 1px dashed var(--accent);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  #upload-label:hover { background: #eef6fb; }
+
+  /* The real input is hidden; the label above opens it. */
+  #upload { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+  #upload-note {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  #upload-note.error { color: #b91c1c; }
+
   /* Legend */
   .layer-row { padding: 7px 0; border-bottom: 1px solid var(--line); }
   .layer-row:last-child { border-bottom: 0; }
@@ -408,6 +440,158 @@
   .map-tools .zoom-row button + button { border-left: 1px solid var(--line); }
 
   .map-tools .help button { font-weight: 600; }
+  /* "Ask about your ward": a question box that answers from the map's own data.
+     The button sits at the top centre of the map, in the gap between the
+     sidebar and the layers panel. */
+  #ask-open {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px 8px 12px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    background: var(--accent);
+    border: 0;
+    border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(11, 110, 168, 0.35);
+    transform: translateX(-50%);
+    cursor: pointer;
+  }
+
+  #ask-open:hover { background: #095a8b; }
+  #ask-open svg { flex: none; }
+
+  /* A ring that pulses out from the button three times after the page loads,
+     then stops, to draw the eye without nagging. */
+  #ask-open::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 0 0 rgba(11, 110, 168, 0.55);
+    animation: ask-pulse 1.8s ease-out 0.8s 3;
+    pointer-events: none;
+  }
+
+  #ask-open.seen::after { animation: none; }
+
+  @keyframes ask-pulse {
+    to { box-shadow: 0 0 0 14px rgba(11, 110, 168, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #ask-open::after { animation: none; }
+  }
+
+  /* The panel drops down from the button. */
+  #ask {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    width: 340px;
+    height: min(440px, calc(100vh - 80px));
+    transform: translateX(-50%);
+  }
+
+  #ask[hidden] { display: none; }
+
+  #ask header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  #ask header b { flex: 1; font-size: 14px; }
+  #ask header small { display: block; font-weight: 400; font-size: 11px; color: var(--muted); }
+
+  #ask-close {
+    padding: 0 6px;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--muted);
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  #ask-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .msg { max-width: 88%; margin: 0 0 8px; padding: 7px 10px; border-radius: 10px; }
+  .msg p { margin: 0 0 4px; }
+  .msg p:last-child { margin-bottom: 0; }
+  .msg ul { margin: 4px 0; padding-left: 18px; }
+  .msg.user { margin-left: auto; color: #fff; background: var(--accent); border-bottom-right-radius: 3px; }
+  .msg.bot { background: #eef2f5; border-bottom-left-radius: 3px; }
+
+  .msg-actions, #ask-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .msg-actions { margin-top: 6px; }
+
+  .chip {
+    padding: 4px 9px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--accent);
+    background: #fff;
+    border: 1px solid #b9d3e4;
+    border-radius: 14px;
+    cursor: pointer;
+  }
+
+  .chip:hover { background: #eef6fb; }
+
+  /* One scrolling row, so the questions leave room for the answers. */
+  #ask-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 8px 12px 2px;
+    border-top: 1px solid var(--line);
+  }
+
+  #ask-chips .chip { flex: none; white-space: nowrap; }
+
+  #ask-form { display: flex; gap: 6px; padding: 8px 12px 10px; }
+
+  #ask-input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 9px;
+    font: inherit;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+
+  #ask-form button {
+    padding: 7px 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  #ask-note { padding: 0 12px 8px; font-size: 10px; color: var(--muted); }
+  #ask-note button { padding: 0; font: inherit; color: var(--accent); background: none; border: 0; text-decoration: underline; cursor: pointer; }
 
   .coord-readout {
     padding: 3px 8px;
@@ -443,6 +627,8 @@
 
     #layer-list { overflow-y: visible; }
     #map { position: static; height: 65vh; }
+    #ask { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; height: 75vh; transform: none; }
+    #ask-open { padding: 7px 14px 7px 10px; font-size: 13px; }
     body { background: #f4f7f9; }
   }
 </style>
@@ -470,6 +656,12 @@
       be switched on in the legend for a click to find it.</div>
     <button id="report" disabled>Generate report</button>
     <button class="link" id="reset">Reset</button>
+    <div id="upload-wrap">
+      <label for="upload" id="upload-label">Or upload an area (KML)</label>
+      <input type="file" id="upload" accept=".kml" />
+      <div id="upload-note">Report on your own area, such as a neighbourhood or project
+        site. The file stays on your computer.</div>
+    </div>
   </div>
 </details>
 
@@ -484,6 +676,23 @@
   </details>
 </div>
 
+<section id="ask" class="panel" hidden aria-label="Ask about your ward">
+  <header>
+    <b>Ask about your ward
+      <small id="ask-ward">Type your ward, or a lake near you.</small></b>
+    <button type="button" class="chip" id="ask-change" hidden>Change ward</button>
+    <button type="button" id="ask-close" aria-label="Close">&times;</button>
+  </header>
+  <div id="ask-messages" aria-live="polite"></div>
+  <div id="ask-chips"></div>
+  <form id="ask-form">
+    <input type="text" id="ask-input" placeholder="e.g. Has Mylasandra lost any lakes?"
+      autocomplete="off" />
+    <button type="submit">Ask</button>
+  </form>
+  <div id="ask-note">Answers come straight from this map's data, the same as the reports.
+    It is not an AI and covers wards only. <button type="button" id="ask-help">How to use?</button></div>
+</section>
 
 <dialog id="help">
   <article>
@@ -524,9 +733,24 @@
 
     <h3>Generating a report</h3>
     <p>Pick a ward, by clicking it or by search, then press
-      <b>Generate report</b>. A new window opens with the details, a map and tables of the
-      existing and lost water bodies in that ward. Use <b>Print / Save as PDF</b> in that
-      window to keep it.</p>
+      <b>Generate report</b>. A new window opens with the details, a small key map showing
+      where the ward sits in the city, a map of the ward, tables of the existing and lost
+      water bodies in that ward and a list of the drains crossing it. Use
+      <b>Print / Save as PDF</b> in that window to keep it.</p>
+    <p>The drain list gives the length of each drain inside the ward, measured from the
+      mapped lines. A drain with under 20 m inside the ward only touches its edge and is
+      left out. Drains with no recorded name are given as a total length rather than
+      listed.</p>
+    <p>A short summary at the top gives the ward's headline facts and compares it with the
+      rest of the city: its lost water area is ranked only among wards that lost any, and
+      its drains are compared per sq km so bigger wards do not always come first. Citizen
+      audits are not ranked, as a ward without audits has not been checked. The report
+      ends with next steps for residents and officials.</p>
+    <p>Where citizen audits found a problem (black water, a strong sewage smell,
+      unauthorised inlets, garbage, stagnant water or a damaged retaining wall), an appendix
+      lists each of those sites with its drain, side, date and location, linked to Google
+      Maps. The sites are numbered on the ward map. A closing note, About this data, gives
+      the sources, how things were measured and what the data cannot show.</p>
     <p>Where citizens have audited drains in the ward, the report also shows what they
       found (water colour, smell, garbage, unauthorised inlets, retaining walls) with a
       short note on what each answer usually means, and marks the audit points on its
@@ -546,6 +770,31 @@
       drain
       network give it its context, and it stays sharp however far you zoom into the PDF.</p>
 
+    <h3>Asking questions</h3>
+    <p>Press <b>Ask about your ward</b> at the top of the map and type a
+      question, such as <i>Has Mylasandra lost any lakes?</i> or <i>Drains in Kengeri</i>.
+      You can name the ward, or a lake in it, and it remembers the ward for your next
+      question; <b>Change ward</b> starts again. The buttons under the box ask the usual
+      questions for you.</p>
+    <p>It is not an AI. It looks for a ward or lake name and a topic (lost lakes, lakes left,
+      drains, citizen audits, or how the ward compares with the city) and answers from the
+      same data as the report, so the two always agree. If it cannot find a ward or a topic,
+      it says so rather than guessing. Every answer links to the ward on the map and to its
+      full report.</p>
+
+    <h3>Reporting on your own area</h3>
+    <p>To report on an area that is not a ward, such as a neighbourhood, a residents'
+      association boundary or a project site, press <b>Or upload an area (KML)</b> under the
+      report button and choose a KML file with the area drawn as a polygon (in Google Earth,
+      draw a polygon and use Save Place As, then choose KML). The map zooms to the area; then
+      press <b>Generate report</b>.</p>
+    <p>The report lists the water bodies, lost water bodies, drains and citizen audit points
+      inside the area, which wards it covers, and the same summary, site list and notes as a
+      ward report. It has no city ranking, as that only compares wards with each other. Only
+      polygons in the file are used; points and lines are ignored, and zipped KMZ files are
+      not read. The file is read in your browser and is never uploaded anywhere.
+      <b>Reset</b> removes the area.</p>
+
     <h3>About the data</h3>
     <p>Water body, drain and ward data by MOD Foundation, from the Building a Resilient
       Bengaluru
@@ -563,6 +812,9 @@
 </dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<!-- For the uploaded-area report: togeojson reads the KML, Turf measures what lies inside. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 <script>
 /*__DATA__*/
 </script>
@@ -950,8 +1202,96 @@
 
   // Clears the pick, not the view: Default view on the map tools card is what
   // moves the map, and the legend switches stay as the reader set them.
+  // ------------------------------------------------------------- KML upload
+  // An uploaded KML outline becomes the report subject. The file is read in the
+  // browser and never leaves it.
+  var UPLOAD_DEF = { id: 'upload', kind: 'Uploaded area' };
+  var uploadLayer = null;
+
+  function uploadNote(text, isError) {
+    var note = document.getElementById('upload-note');
+    note.textContent = text;
+    note.className = isError ? 'error' : '';
+  }
+
+  function clearUpload() {
+    if (uploadLayer) map.removeLayer(uploadLayer);
+    uploadLayer = null;
+    document.getElementById('upload').value = '';
+  }
+
+  // Every polygon in the KML joined into one area, or null when there is none.
+  // turf.flatten also opens up KML MultiGeometry, which togeojson returns as a
+  // GeometryCollection.
+  function areaFromKml(text) {
+    var xml = new DOMParser().parseFromString(text, 'text/xml');
+    var polygons = turf.flatten(toGeoJSON.kml(xml)).features.filter(function (feature) {
+      return feature.geometry && feature.geometry.type === 'Polygon';
+    });
+    if (!polygons.length) return null;
+    var area = polygons.reduce(function (joined, polygon) {
+      return turf.union(joined, polygon);
+    });
+    area.properties = { name: (polygons[0].properties || {}).name };
+    return area;
+  }
+
+  function buildUpload() {
+    var input = document.getElementById('upload');
+    input.addEventListener('change', function () {
+      var file = input.files[0];
+      if (!file) return;
+      if (/\.kmz$/i.test(file.name)) {
+        uploadNote('KMZ files are zipped. Save the area as KML (in Google Earth: Save ' +
+                   'Place As, then choose KML) and upload that.', true);
+        input.value = '';
+        return;
+      }
+
+      var reader = new FileReader();
+      reader.onload = function () {
+        var area;
+        try {
+          area = areaFromKml(reader.result);
+        } catch (error) {
+          uploadNote('Could not read this file as KML.', true);
+          input.value = '';
+          return;
+        }
+        if (!area) {
+          uploadNote('This KML has no area outline, only points or lines. Draw a ' +
+                     'polygon around the area and try again.', true);
+          input.value = '';
+          return;
+        }
+
+        clearUpload();
+        uploadLayer = L.geoJSON(area, {
+          interactive: false,
+          style: { color: '#14202b', weight: 2, dashArray: '6 4',
+                   fillColor: '#0b6ea8', fillOpacity: 0.08 }
+        }).addTo(map);
+        map.fitBounds(uploadLayer.getBounds(), { padding: [30, 30] });
+
+        var label = area.properties.name || file.name.replace(/\.kml$/i, '');
+        selected = { def: UPLOAD_DEF, feature: area, label: label };
+        document.getElementById('selected-note').innerHTML =
+          'Selected: <b>' + esc(label) + '</b> (uploaded area)';
+        document.getElementById('report').disabled = false;
+        uploadNote('Loaded ' + file.name + ' (' + (turf.area(area) / 1e6).toFixed(2) +
+                   ' sq km). Press Generate report.');
+        // Cleared so choosing the same file again still fires a change.
+        input.value = '';
+      };
+      reader.readAsText(file);
+    });
+  }
+
   function buildReset() {
     document.getElementById('reset').addEventListener('click', function () {
+      clearUpload();
+      uploadNote('Report on your own area, such as a neighbourhood or project site. ' +
+                 'The file stays on your computer.');
       selected = null;
       document.getElementById('report').disabled = true;
       document.getElementById('selected-note').textContent = EMPTY_NOTE;
@@ -1277,14 +1617,14 @@
   // Longitude/latitude to SVG user units. L.CRS.EPSG3857 does the Mercator
   // maths, so the report map keeps the same shape as the map on screen. One
   // scale serves both axes and the result is centred, so nothing is stretched.
-  function makeProjector(frame) {
+  function makeProjector(frame, boxW, boxH) {
     var southWest = L.CRS.EPSG3857.project(L.latLng(frame[1], frame[0]));
     var northEast = L.CRS.EPSG3857.project(L.latLng(frame[3], frame[2]));
     var width = northEast.x - southWest.x;
     var height = northEast.y - southWest.y;
-    var scale = Math.min(REPORT_W / width, REPORT_H / height);
-    var offsetX = (REPORT_W - width * scale) / 2;
-    var offsetY = (REPORT_H - height * scale) / 2;
+    var scale = Math.min(boxW / width, boxH / height);
+    var offsetX = (boxW - width * scale) / 2;
+    var offsetY = (boxH - height * scale) / 2;
 
     return function (position) {
       var point = L.CRS.EPSG3857.project(L.latLng(position[1], position[0]));
@@ -1335,9 +1675,10 @@
   }
 
   // points: the ward's water audit points, drawn as dots coloured by water colour.
-  function reportSvg(subject, label, points) {
+  // sites: the numbered sites for follow-up from sitesIn, labelled with their numbers.
+  function reportSvg(subject, label, points, sites) {
     var frame = reportFrame(subject);
-    var project = makeProjector(frame);
+    var project = makeProjector(frame, REPORT_W, REPORT_H);
 
     // LAYER_DEFS order, so the first layer lands at the bottom exactly as it
     // does on screen. Every layer is drawn whatever the legend switches say.
@@ -1375,6 +1716,41 @@
     }).join('');
     dots = '<g stroke="#334155" stroke-width="1">' + dots + '</g>';
 
+    // Structure audit points are not dotted, so a flagged one gets a small dark
+    // square to carry its number.
+    var squares = '';
+    var numbers = '';
+    // Sites along one drain sit close together, so each number tries four spots
+    // around its mark (right, left, above, below) and takes the first that does
+    // not cover a number already placed. If all four are taken it goes right.
+    var placed = [];
+    function overlaps(box) {
+      return placed.some(function (other) {
+        return box[0] < other[2] && box[2] > other[0] && box[1] < other[3] && box[3] > other[1];
+      });
+    }
+    (sites || []).forEach(function (site) {
+      var xy = project(site.feature.geometry.coordinates).split(',');
+      var x = parseFloat(xy[0]);
+      var y = parseFloat(xy[1]);
+      if (site.layerId === 'audit_structure') {
+        squares += '<rect x="' + (x - 3.5).toFixed(1) + '" y="' + (y - 3.5).toFixed(1) +
+                   '" width="7" height="7" fill="#14202b" stroke="#ffffff" stroke-width="1"/>';
+      }
+      // Text box size for an 11px bold number: about 7 px per digit, 11 px tall.
+      var width = String(site.number).length * 7;
+      var spots = [[x + 6, y + 4], [x - 6 - width, y + 4], [x - width / 2, y - 7], [x - width / 2, y + 15]];
+      var spot = spots.filter(function (s) {
+        return !overlaps([s[0], s[1] - 10, s[0] + width, s[1] + 1]);
+      })[0] || spots[0];
+      placed.push([spot[0], spot[1] - 10, spot[0] + width, spot[1] + 1]);
+      numbers += '<text x="' + spot[0].toFixed(1) + '" y="' + spot[1].toFixed(1) + '">' +
+                 site.number + '</text>';
+    });
+    // A white halo under each number keeps it readable over lines and fills.
+    numbers = '<g font-family="Segoe UI, Roboto, sans-serif" font-size="11" font-weight="700"' +
+      ' fill="#14202b" stroke="#ffffff" stroke-width="3" paint-order="stroke">' + numbers + '</g>';
+
     // A feature is drawn whenever its bounding box touches the frame, so a long
     // drain or a big neighbouring ward can run well past it. The viewport would
     // crop that anyway, but clipping explicitly keeps the map cropped if the
@@ -1388,9 +1764,22 @@
       box + ' fill="#f4f7f9"/>' +
       '<g clip-path="url(#report-frame)" ' +
       'stroke-linejoin="round" stroke-linecap="round">' +
-      groups + outline + dots +
+      groups + outline + dots + squares + numbers +
       '</g></svg>';
   }
+
+  // ------------------------------------------------------- report context
+  // Every section of the report reads from one "context" describing the area
+  // it covers. A ward's context comes from what build_map.py measured; an
+  // uploaded area's is measured here in the browser with Turf. Everything
+  // after that is shared, so both reports look the same.
+  //
+  //   { kind: 'ward' or 'area', name, where ('ward' or 'area', for wording),
+  //     subject (feature outlined and framed), keyShapes (filled on the key map),
+  //     existing and lost ([{ feature, acres }]),
+  //     drains ({ primarydrains, secondarydrains }, each { named, unnamed_m }),
+  //     water and structure (audit points),
+  //     stats (wards only: city comparison), wards (areas only: wards covered) }
 
   // Lakes with any part inside the ward, from the overlay build_map.py runs.
   // Each is { feature, acres }, where acres is only the part inside this ward.
@@ -1410,15 +1799,354 @@
     return match ? match.acres : undefined;
   }
 
+  function auditsInWard(layerId, wardName) {
+    if (!wardName) return [];
+    return DATA[layerId].features.filter(function (feature) {
+      return feature.properties.ward_name === wardName;
+    });
+  }
+
+  function wardContext(wardName, subject) {
+    return {
+      kind: 'ward', name: wardName, where: 'ward', subject: subject,
+      keyShapes: DATA.keymap_wards.features.filter(function (feature) {
+        return feature.properties.ward_name === wardName;
+      }),
+      existing: lakesInWard('lakes_existing', wardName),
+      lost: lakesInWard('lakes_lost', wardName),
+      drains: {
+        primarydrains: DATA.ward_drains.primarydrains[wardName],
+        secondarydrains: DATA.ward_drains.secondarydrains[wardName]
+      },
+      water: auditsInWard('audit_water', wardName),
+      structure: auditsInWard('audit_structure', wardName),
+      stats: DATA.ward_stats[wardName]
+    };
+  }
+
+  // The same rules build_map.py uses, so an uploaded area and a ward measure alike.
+  var SQ_M_PER_ACRE = 4046.8564224;
+  var MIN_ACRES = 0.1;
+  var MIN_DRAIN_M = 20;
+
+  // Only features whose bounding box touches the area's are worth measuring.
+  function nearArea(features, box) {
+    return features.filter(function (feature) {
+      var b = bboxOf(feature);
+      return b[0] <= box[2] && b[2] >= box[0] && b[1] <= box[3] && b[3] >= box[1];
+    });
+  }
+
+  // The part of a polygon inside the area, or null. Turf can throw on a
+  // slightly broken outline; that piece is then skipped rather than failing
+  // the whole report.
+  function clipPolygon(feature, area) {
+    try {
+      return turf.intersect(feature, area);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // Length in metres of a drain inside the area: cut the line where it crosses
+  // the area's edge and keep the pieces whose midpoint is inside.
+  function metresInside(feature, area) {
+    var total = 0;
+    turf.flatten(feature).features.forEach(function (line) {
+      var pieces = turf.lineSplit(line, area).features;
+      if (!pieces.length) pieces = [line];
+      pieces.forEach(function (piece) {
+        var km = turf.length(piece);
+        if (km > 0 && turf.booleanPointInPolygon(turf.along(piece, km / 2), area)) {
+          total += km * 1000;
+        }
+      });
+    });
+    return total;
+  }
+
+  // Drain lengths grouped as build_map.py groups them: by drain code, with the
+  // primary drain it flows into, and one total for drains with no code.
+  function drainsInArea(layerId, area, box) {
+    var byName = {};
+    var unnamed = 0;
+    nearArea(DATA[layerId].features, box).forEach(function (feature) {
+      var m = metresInside(feature, area);
+      if (!m) return;
+      var name = feature.properties['Drain num'];
+      if (!name) { unnamed += m; return; }
+      var entry = byName[name] || (byName[name] = { name: name, m: 0 });
+      entry.m += m;
+      if (!entry.feeds && feature.properties['pri_Drain num']) {
+        entry.feeds = feature.properties['pri_Drain num'];
+      }
+    });
+    var named = Object.keys(byName).map(function (name) {
+      byName[name].m = Math.round(byName[name].m);
+      return byName[name];
+    }).filter(function (entry) {
+      return entry.m >= MIN_DRAIN_M;
+    }).sort(function (a, b) { return b.m - a.m; });
+    return { named: named, unnamed_m: unnamed >= MIN_DRAIN_M ? Math.round(unnamed) : 0 };
+  }
+
+  function areaContext(name, area) {
+    var box = turf.bbox(area);
+    var areaSqM = turf.area(area);
+
+    function lakes(layerId) {
+      return nearArea(DATA[layerId].features, box).map(function (feature) {
+        var piece = clipPolygon(feature, area);
+        return { feature: feature, acres: piece ? turf.area(piece) / SQ_M_PER_ACRE : 0 };
+      }).filter(function (lake) {
+        return lake.acres >= MIN_ACRES;
+      }).map(function (lake) {
+        lake.acres = Math.round(lake.acres * 100) / 100;
+        return lake;
+      }).sort(function (a, b) { return b.acres - a.acres; });
+    }
+
+    function pointsInside(layerId) {
+      return nearArea(DATA[layerId].features, box).filter(function (feature) {
+        return turf.booleanPointInPolygon(feature, area);
+      });
+    }
+
+    // Wards the area covers, with the share of the area in each. Slivers under
+    // 1% are where the outline only grazes a ward edge.
+    var wards = nearArea(DATA.gba_wards.features, box).map(function (feature) {
+      var piece = clipPolygon(feature, area);
+      return { feature: feature, share: piece ? 100 * turf.area(piece) / areaSqM : 0 };
+    }).filter(function (ward) {
+      return ward.share >= 1;
+    }).sort(function (a, b) { return b.share - a.share; });
+
+    return {
+      kind: 'area', name: name, where: 'area', subject: area, keyShapes: [area],
+      existing: lakes('lakes_existing'),
+      lost: lakes('lakes_lost'),
+      drains: {
+        primarydrains: drainsInArea('primarydrains', area, box),
+        secondarydrains: drainsInArea('secondarydrains', area, box)
+      },
+      water: pointsInside('audit_water'),
+      structure: pointsInside('audit_structure'),
+      wards: wards,
+      areaSqKm: areaSqM / 1e6
+    };
+  }
+
+  // ------------------------------------------------------- report key map
+  // A small map of the whole city showing only the wards, with the report's
+  // ward or uploaded area filled in, so a reader can see where it is. It draws
+  // from DATA.keymap_wards, a coarse copy of the wards build_map.py makes for this.
+  var KEYMAP_SIZE = 260;
+
+  function keyMapSvg(ctx) {
+    var frame = bboxOf(DATA.gba_boundary.features[0]);
+    var project = makeProjector(frame, KEYMAP_SIZE, KEYMAP_SIZE);
+
+    var wards = DATA.keymap_wards.features.map(function (feature) {
+      return '<path d="' + pathData(feature.geometry, project) + '"/>';
+    }).join('');
+    var subject = ctx.keyShapes.map(function (feature) {
+      return '<path d="' + pathData(feature.geometry, project) + '"/>';
+    }).join('');
+    var boundary = pathData(DATA.gba_boundary.features[0].geometry, project);
+
+    return '<svg class="keymap" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
+      KEYMAP_SIZE + ' ' + KEYMAP_SIZE + '" role="img">' +
+      '<title>Location of ' + esc(ctx.name) + ' in Greater Bengaluru</title>' +
+      '<rect width="' + KEYMAP_SIZE + '" height="' + KEYMAP_SIZE + '" fill="#ffffff"/>' +
+      '<g stroke-linejoin="round">' +
+      '<g fill="#eef2f5" stroke="#b7c3cd" stroke-width="0.5" fill-rule="evenodd">' + wards + '</g>' +
+      '<path d="' + boundary + '" fill="none" stroke="#14202b" stroke-width="1.2"/>' +
+      '<g fill="#0b6ea8" stroke="#14202b" stroke-width="2" fill-rule="evenodd">' + subject + '</g>' +
+      '</g></svg>';
+  }
+
+  // ------------------------------------------------ drains in the report
+  function metres(value) {
+    return value.toLocaleString('en-IN') + ' m';
+  }
+
+  // One table of the named drains of one layer crossing the ward or area,
+  // followed by the total length of the unnamed ones. Unnamed drains are stored
+  // as many short pieces, so a count of them would mean nothing.
+  function drainTable(title, entry, withFeeds, where) {
+    var named = entry ? entry.named : [];
+    var unnamedM = entry ? entry.unnamed_m : 0;
+    if (!named.length && !unnamedM) {
+      return '<h3>' + title + '</h3><p class="empty">None recorded crossing this ' + where + '.</p>';
+    }
+
+    var table = '';
+    if (named.length) {
+      table = '<table class="grid">' +
+        '<thead><tr><th>Drain</th>' + (withFeeds ? '<th>Flows into primary drain</th>' : '') +
+        '<th class="num">Length in ' + where + '</th></tr></thead><tbody>' +
+        named.map(function (drain) {
+          return '<tr><td>' + esc(drain.name) + '</td>' +
+                 (withFeeds ? '<td>' + cell(drain.feeds) + '</td>' : '') +
+                 '<td class="num">' + metres(drain.m) + '</td></tr>';
+        }).join('') +
+        '</tbody></table>';
+    }
+    var rest = unnamedM ? '<p>' + (named.length ? 'Plus ' : '') + metres(unnamedM) +
+      ' of drains with no recorded name.</p>' : '';
+    var count = named.length ? ' <span class="count">' + named.length + '</span>' : '';
+
+    return '<h3>' + title + count + '</h3>' + table + rest;
+  }
+
+  function drainSection(ctx) {
+    return '<h2>Drains crossing this ' + ctx.where + '</h2>' + drainRankNote(ctx) +
+      drainTable('Primary drains', ctx.drains.primarydrains, false, ctx.where) +
+      drainTable('Secondary drains', ctx.drains.secondarydrains, true, ctx.where) +
+      '<p class="context-note">Length in ' + ctx.where + ' is the part of each drain inside ' +
+      'this ' + ctx.where + ', measured from the mapped lines. A drain with under 20 m ' +
+      'inside only touches its edge and is left out.</p>';
+  }
+
+  // Total km of one drain layer in the context, named and unnamed.
+  function drainKm(entry) {
+    if (!entry) return 0;
+    return (entry.named.reduce(function (sum, drain) { return sum + drain.m; }, 0) +
+            entry.unnamed_m) / 1000;
+  }
+
+  function totalAcres(lakes) {
+    return lakes.reduce(function (sum, lake) { return sum + lake.acres; }, 0);
+  }
+
+  // ------------------------------------ report summary and city comparison
+  // The ranks come from ward_stats, worked out once by build_map.py, so they
+  // only appear in ward reports: an uploaded area has no set of peers.
+  function ordinal(n) {
+    var tens = n % 100;
+    var suffix = (tens > 10 && tens < 14) ? 'th' :
+      ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+    return n + suffix;
+  }
+
+  function plural(count, one, many) {
+    return count + ' ' + (count === 1 ? one : many);
+  }
+
+  // "the 3rd largest loss among the 85 wards that lost water bodies".
+  function lossRankText(rank, of) {
+    return (rank === 1 ? 'the largest' : 'the ' + ordinal(rank) + ' largest') +
+      ' loss among the ' + of + ' wards that lost water bodies';
+  }
+
+  function lostRankNote(ctx) {
+    if (!ctx.stats) return '';
+    var city = DATA.ward_stats._city;
+    var cityText = 'Across the city, ' + city.lost_acres.toFixed(1) + ' acres of water bodies ' +
+      'are recorded as lost, in ' + city.lost_of + ' of the ' + city.wards + ' wards.';
+    if (!ctx.stats.lost_rank) return '<p class="rank-note">' + cityText + '</p>';
+    return '<p class="rank-note">This is ' + lossRankText(ctx.stats.lost_rank, city.lost_of) +
+      '. ' + cityText + '</p>';
+  }
+
+  function drainRankNote(ctx) {
+    var stats = ctx.stats;
+    if (!stats || !(stats.primary_km + stats.secondary_km)) return '';
+    return '<p class="rank-note">This ward has more drain per sq km than ' +
+      stats.drain_pct + '% of wards in the city. Drains are compared per sq km because ' +
+      'bigger wards would otherwise always have more.</p>';
+  }
+
+  // Points where the audit found a clear warning sign.
+  function auditSentence(ctx) {
+    var water = ctx.water;
+    if (!water.length) return '';
+    function count(field, value) {
+      return water.filter(function (feature) {
+        return feature.properties[field] === value;
+      }).length;
+    }
+    var findings = [
+      [count('water_colour', 'Black'), 'black water'],
+      [count('water_smell', 'Strong smell of sewage (unable to stand near the SWD)'),
+       'a strong sewage smell'],
+      [count('sw_inside', 'Yes'), 'garbage inside the drain'],
+      [count('unauthorised_inlets', 'Yes'), 'unauthorised inlets']
+    ].filter(function (finding) { return finding[0] > 0; }).map(function (finding) {
+      return finding[1] + ' at ' + finding[0];
+    });
+    var intro = 'Citizens audited ' + plural(water.length, 'point', 'points') + ' on its drains';
+    if (!findings.length) return intro + ' and found no black water, strong sewage smell, ' +
+      'garbage or unauthorised inlets.';
+    var last = findings.pop();
+    return intro + ' and found ' + (findings.length ? findings.join(', ') + ' and ' : '') + last + '.';
+  }
+
+  function summaryBox(ctx) {
+    var stats = ctx.stats;
+    var city = DATA.ward_stats._city;
+    var sentences = [];
+
+    var existing = ctx.existing.length;
+    sentences.push(existing ?
+      'Has ' + plural(existing, 'existing water body', 'existing water bodies') + ' (' +
+        totalAcres(ctx.existing).toFixed(1) + ' acres in the ' + ctx.where + ').' :
+      'Has no existing water bodies on record.');
+
+    var lostAcres = totalAcres(ctx.lost);
+    var lostShare = Math.round(100 * lostAcres / (lostAcres + totalAcres(ctx.existing)));
+    sentences.push(ctx.lost.length ?
+      'Has lost ' + plural(ctx.lost.length, 'water body', 'water bodies') + ' (' +
+        lostAcres.toFixed(1) + ' acres)' +
+        (stats && stats.lost_rank ? ', ' + lossRankText(stats.lost_rank, city.lost_of) : '') +
+        '. That is ' + lostShare + '% of its recorded water area.' :
+      'No lost water bodies are recorded here.');
+
+    var primaryKm = drainKm(ctx.drains.primarydrains);
+    var secondaryKm = drainKm(ctx.drains.secondarydrains);
+    sentences.push(primaryKm + secondaryKm ?
+      (primaryKm + secondaryKm).toFixed(1) + ' km of drain runs through it (' +
+        primaryKm.toFixed(1) + ' km primary, ' + secondaryKm.toFixed(1) + ' km secondary)' +
+        (stats ? ', more per sq km than ' + stats.drain_pct + '% of wards' : '') + '.' :
+      'No mapped drains cross it.');
+
+    sentences.push(auditSentence(ctx) || 'No citizen audits have been recorded here yet.');
+
+    return '<section class="summary"><h2>About ' + esc(ctx.name) + '</h2><ul>' +
+      sentences.map(function (sentence) { return '<li>' + sentence + '</li>'; }).join('') +
+      '</ul></section>';
+  }
+
+  // General pointers only: no phone numbers or emails that could go out of date.
+  // hasSites: whether the appendix lists any sites for follow-up.
+  function actionBox(hasSites) {
+    var forOfficials = hasSites ?
+      'The sites for follow-up at the end list each problem found, with drain, side, date ' +
+        'and map location, and are numbered on the map.' :
+      'The drain codes above are the IDs used in the source maps. About this data, at the ' +
+        'end, gives the sources and what they cannot show.';
+    return '<section class="actions"><h2>Next steps</h2><ul>' +
+      '<li><b>For officials.</b> ' + forOfficials + '</li>' +
+      '<li><b>Raise it with your ward.</b> Take this report to your ward committee ' +
+      'meeting or your corporation\'s ward office under the Greater Bengaluru Authority, ' +
+      'and ask what is planned for the water bodies and drains listed here.</li>' +
+      '<li><b>Report pollution.</b> Sewage or industrial waste running into drains and ' +
+      'lakes can be reported to the Karnataka State Pollution Control Board.</li>' +
+      '<li><b>Join a citizen audit.</b> Volunteers check drains ward by ward. To take ' +
+      'part, see buildingaresilientbengaluru.com.</li>' +
+      '</ul></section>';
+  }
+
   function metaTable(rows) {
     return '<table class="meta">' + rows.map(function (row) {
       return '<tr><th>' + row[0] + '</th><td>' + cell(row[1]) + '</td></tr>';
     }).join('') + '</table>';
   }
 
-  function lakeTable(title, lakes, statusField, statusLabel, emptyText) {
+  function lakeTable(title, lakes, statusField, statusLabel, where) {
     if (!lakes.length) {
-      return '<h2>' + title + '</h2><p class="empty">' + emptyText + '</p>';
+      return '<h2>' + title + '</h2><p class="empty">No ' + title.toLowerCase() +
+        ' recorded in this ' + where + '.</p>';
     }
     var total = 0;
     var rows = lakes.map(function (lake) {
@@ -1430,20 +2158,14 @@
     }).join('');
     return '<h2>' + title + ' <span class="count">' + lakes.length + '</span></h2>' +
       '<table class="grid">' +
-      '<thead><tr><th>Name</th><th class="num">Acres in ward</th><th>' + statusLabel + '</th></tr></thead>' +
+      '<thead><tr><th>Name</th><th class="num">Acres in ' + where + '</th><th>' + statusLabel +
+      '</th></tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
       '<tfoot><tr><th>Total</th><th class="num">' +
       total.toFixed(2) + '</th><th></th></tr></tfoot></table>';
   }
 
   // ------------------------------------------- citizen audits in the report
-  function auditsInWard(layerId, wardName) {
-    if (!wardName) return [];
-    return DATA[layerId].features.filter(function (feature) {
-      return feature.properties.ward_name === wardName;
-    });
-  }
-
   // Distinct values of one field, in the order first seen.
   function distinct(points, field) {
     var seen = [];
@@ -1460,7 +2182,7 @@
       date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
-  // One table: each answer, how many of the ward's points gave it, the share,
+  // One table: each answer, how many of the points gave it, the share,
   // and what that answer usually means.
   function auditTable(indicator, points) {
     var other = points.length;
@@ -1489,14 +2211,14 @@
       '</tbody></table>';
   }
 
-  function auditSection(wardName) {
-    var water = auditsInWard('audit_water', wardName);
-    var structure = auditsInWard('audit_structure', wardName);
-    var title = '<h2>Citizen audits in this ward</h2>';
+  function auditSection(ctx) {
+    var water = ctx.water;
+    var structure = ctx.structure;
+    var title = '<h2>Citizen audits in this ' + ctx.where + '</h2>';
 
     if (!water.length && !structure.length) {
-      return title + '<p class="empty">No citizen audits have been recorded in this ward ' +
-        'yet. To take part, see buildingaresilientbengaluru.com.</p>';
+      return title + '<p class="empty">No citizen audits have been recorded in this ' +
+        ctx.where + ' yet. To take part, see buildingaresilientbengaluru.com.</p>';
     }
 
     var all = water.concat(structure);
@@ -1531,63 +2253,197 @@
       'explanations are general guidance.</p>';
   }
 
-  function reportHtml(hit) {
+  // ------------------------------------------ sites for follow-up (appendix)
+  // The audit answers that mark a site as needing attention, as
+  // [layer, field, answer as recorded, how the site list describes it].
+  var SITE_FLAGS = [
+    ['audit_water', 'water_colour', 'Black', 'black water'],
+    ['audit_water', 'water_smell', 'Strong smell of sewage (unable to stand near the SWD)',
+     'strong sewage smell'],
+    ['audit_water', 'unauthorised_inlets', 'Yes', 'unauthorised inlets'],
+    ['audit_water', 'sw_inside', 'Yes', 'garbage in the drain'],
+    ['audit_water', 'water_stagnant', 'Stagnant', 'stagnant water'],
+    ['audit_structure', 'wall_condition', 'Broken in some places', 'retaining wall broken'],
+    ['audit_structure', 'wall_condition', 'Retaining wall does not exist', 'no retaining wall']
+  ];
+
+  // Audit points that found at least one problem, numbered in the order the
+  // appendix lists them: by drain, then north to south, so sites next to each
+  // other along a drain get numbers next to each other.
+  function sitesIn(ctx) {
+    var sites = [];
+    [['audit_water', ctx.water], ['audit_structure', ctx.structure]].forEach(function (pair) {
+      pair[1].forEach(function (feature) {
+        var found = SITE_FLAGS.filter(function (flag) {
+          return flag[0] === pair[0] && feature.properties[flag[1]] === flag[2];
+        }).map(function (flag) { return flag[3]; });
+        if (found.length) sites.push({ layerId: pair[0], feature: feature, found: found });
+      });
+    });
+    sites.sort(function (a, b) {
+      var drainA = a.feature.properties.drain || '';
+      var drainB = b.feature.properties.drain || '';
+      if (drainA !== drainB) return drainA < drainB ? -1 : 1;
+      return b.feature.geometry.coordinates[1] - a.feature.geometry.coordinates[1];
+    });
+    sites.forEach(function (site, i) { site.number = i + 1; });
+    return sites;
+  }
+
+  function siteList(ctx, sites) {
+    if (!ctx.water.length && !ctx.structure.length) return '';
+    var title = '<section class="appendix"><h2>Appendix: sites for follow-up' +
+      (sites.length ? ' <span class="count">' + sites.length + '</span>' : '') + '</h2>';
+    if (!sites.length) {
+      return title + '<p class="empty">None of the audit points in this ' + ctx.where +
+        ' found black water, a strong sewage smell, unauthorised inlets, garbage, stagnant ' +
+        'water or a damaged retaining wall.</p></section>';
+    }
+
+    var rows = sites.map(function (site) {
+      var props = site.feature.properties;
+      var lon = site.feature.geometry.coordinates[0].toFixed(5);
+      var lat = site.feature.geometry.coordinates[1].toFixed(5);
+      var drain = (props.drain || '') + (props.secondary_drain ? ' (' + props.secondary_drain + ')' : '');
+      var found = site.found.join(', ');
+      return '<tr><td class="num">' + site.number + '</td>' +
+        '<td>' + cell(drain) + '</td>' +
+        '<td>' + cell(props.side ? props.side.replace(/.*\((\w+)\)$/, '$1') : '') + '</td>' +
+        '<td>' + esc(found.charAt(0).toUpperCase() + found.slice(1)) + '</td>' +
+        '<td>' + cell(props.date ? formatDate(props.date) : '') + '</td>' +
+        '<td><a href="https://www.google.com/maps?q=' + lat + ',' + lon + '">' +
+        lat + ', ' + lon + '</a></td></tr>';
+    }).join('');
+
+    return title + '<p>Each audit point in this ' + ctx.where + ' that found a problem, ' +
+      'numbered as on the map. Locations are latitude and longitude; each opens in Google Maps.</p>' +
+      '<table class="grid sites"><thead><tr><th class="num">#</th><th>Drain</th>' +
+      '<th>Side</th><th>Found</th><th>Date</th><th>Location</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></section>';
+  }
+
+  // One place that says where the numbers come from and what they cannot show.
+  // ctx is null for a water body outside every ward.
+  function dataNote(ctx) {
+    var where = ctx ? ctx.where : 'ward';
+    var audits = ctx ? ctx.water.concat(ctx.structure) : [];
+    var dates = distinct(audits, 'date').sort();
+    var auditSource = audits.length ?
+      'Citizen audit forms: validated submissions only. In this ' + where + ', ' +
+        plural(audits.length, 'point', 'points') + ' recorded by ' +
+        esc(distinct(audits, 'team').join(', ')) + ', ' + formatDate(dates[0]) +
+        (dates.length > 1 ? ' to ' + formatDate(dates[dates.length - 1]) : '') + '.' :
+      'Citizen audit forms: validated submissions only. None have been recorded in this ' +
+        where + '.';
+
+    return '<section class="data-note"><h2>About this data</h2><ul>' +
+      '<li><b>Maps.</b> Ward, corporation, water body and drain maps from the Building a ' +
+      'Resilient Bengaluru website (accessed 23 May 2026).</li>' +
+      (ctx && ctx.kind === 'area' ? '<li><b>Uploaded area.</b> The outline comes from the ' +
+        'KML file uploaded for this report. Everything inside it was measured in the ' +
+        'browser against that outline, which has not been checked against any official ' +
+        'boundary.</li>' : '') +
+      '<li><b>Audits.</b> ' + auditSource + '</li>' +
+      '<li><b>Measurement.</b> Water body area and drain length inside the ' + where +
+      ' are measured from the mapped outlines. Water body pieces under 0.1 acres and ' +
+      'drains with under 20 m inside are left out. Drain codes are the IDs used in the ' +
+      'source maps.' + (ctx && ctx.kind === 'ward' ? ' City comparisons cover all ' +
+        DATA.ward_stats._city.wards + ' GBA wards.' : '') + '</li>' +
+      '<li><b>Limits.</b> Audits are visual checks by trained volunteers, not lab tests. ' +
+      'An area with no audits has not been checked, which does not mean its drains are ' +
+      'clean. What now occupies a lost water body is as recorded in the source data, not ' +
+      'a legal finding.</li>' +
+      '</ul></section>';
+  }
+
+  // The rows under the title: what the report is about.
+  function detailsTable(hit, ctx) {
     var props = hit.feature.properties;
-    var isWard = hit.def.id === 'gba_wards';
+    if (hit.def.id === 'upload') {
+      var corporations = [];
+      ctx.wards.forEach(function (ward) {
+        var name = ward.feature.properties.Corporation;
+        if (name && corporations.indexOf(name) === -1) corporations.push(name);
+      });
+      return metaTable([
+        ['Area', ctx.areaSqKm.toFixed(2) + ' sq km (' +
+          Math.round(ctx.areaSqKm * 1e6 / SQ_M_PER_ACRE).toLocaleString('en-IN') + ' acres)'],
+        ['Wards', ctx.wards.map(function (ward) {
+          return ward.feature.properties.ward_name + ' (' + Math.round(ward.share) + '%)';
+        }).join(', ') || 'Outside the GBA wards'],
+        ['Corporation', corporations.join(', ')]
+      ]);
+    }
+    if (hit.def.id === 'gba_wards') {
+      return metaTable([
+        ['Ward', props.ward_name],
+        ['Corporation', props.Corporation],
+        ['Valley', listText(props.valley)]
+      ]);
+    }
     var wardName = String(props.ward_name || '').trim();
+    var inWard = acresInWard(hit.def.id, wardName, hit.feature);
+    return metaTable([
+      ['Water body', props.name],
+      ['Type', hit.def.kind],
+      ['Status', hit.def.id === 'lakes_existing' ? props.status : props.current_use],
+      ['Area (whole lake)', props.area_acres !== undefined ? props.area_acres.toFixed(2) + ' acres' : null],
+      ['Area in ward', inWard !== undefined ? inWard.toFixed(2) + ' acres' : null],
+      ['Ward', props.ward_name],
+      ['Corporation', props.Corporation],
+      ['Valley', listText(props.valley)]
+    ]);
+  }
 
-    var subject;
-    if (isWard) {
-      subject = metaTable([
-        ['Ward', props.ward_name],
-        ['Corporation', props.Corporation],
-        ['Valley', listText(props.valley)]
-      ]);
+  // The context a report describes: the uploaded area, the ward itself, or the
+  // ward a water body lies in. Null for a water body outside every ward.
+  function reportContext(hit) {
+    if (hit.def.id === 'upload') return areaContext(hit.label, hit.feature);
+    var wardName = String(hit.feature.properties.ward_name || '').trim();
+    return wardName ? wardContext(wardName, reportSubjectFeature(hit)) : null;
+  }
+
+  function reportHtml(hit) {
+    var ctx = reportContext(hit);
+    var isWaterBody = hit.def.id === 'lakes_existing' || hit.def.id === 'lakes_lost';
+
+    var body;
+    if (ctx) {
+      var heading = isWaterBody ?
+        '<p class="context-note">Other water bodies recorded in ' + esc(ctx.name) + '</p>' : '';
+      body = heading +
+        lakeTable('Existing water bodies', ctx.existing, 'status', 'Status', ctx.where) +
+        lakeTable('Lost water bodies', ctx.lost, 'current_use', 'Now occupied by', ctx.where) +
+        '<p class="context-note">Acres in ' + ctx.where + ' is the part of each water body ' +
+        'inside this ' + ctx.where + ', measured from the mapped outlines. A water body that ' +
+        'crosses its boundary is split, and pieces under 0.1 acres are left out.</p>' +
+        lostRankNote(ctx) +
+        drainSection(ctx) +
+        auditSection(ctx);
     } else {
-      var statusValue = hit.def.id === 'lakes_existing' ? props.status : props.current_use;
-      var inWard = acresInWard(hit.def.id, wardName, hit.feature);
-      subject = metaTable([
-        ['Water body', props.name],
-        ['Type', hit.def.kind],
-        ['Status', statusValue],
-        ['Area (whole lake)', props.area_acres !== undefined ? props.area_acres.toFixed(2) + ' acres' : null],
-        ['Area in ward', inWard !== undefined ? inWard.toFixed(2) + ' acres' : null],
-        ['Ward', props.ward_name],
-        ['Corporation', props.Corporation],
-        ['Valley', listText(props.valley)]
-      ]);
+      body = '<p class="empty">No ward is recorded for this water body, so there is no ' +
+             'ward context to report. It lies outside the GBA ward boundaries.</p>';
     }
 
-    var context;
-    if (wardName) {
-      var heading = isWard ? '' :
-        '<p class="context-note">Other water bodies recorded in ' + esc(wardName) + '</p>';
-      context = heading +
-        lakeTable('Existing water bodies', lakesInWard('lakes_existing', wardName),
-                  'status', 'Status', 'No existing water bodies recorded in this ward.') +
-        lakeTable('Lost water bodies', lakesInWard('lakes_lost', wardName),
-                  'current_use', 'Now occupied by',
-                  'No lost water bodies recorded in this ward.') +
-        '<p class="context-note">Acres in ward is the part of each water body inside ' +
-        'this ward, measured from the mapped outlines. A water body that crosses a ward ' +
-        'boundary is split between the wards, and pieces under 0.1 acres are left out.</p>' +
-        auditSection(wardName);
-    } else {
-      context = '<p class="empty">No ward is recorded for this water body, so there is no ' +
-                'ward ' +
-                'context to report. It lies outside the GBA ward boundaries.</p>';
-    }
-
-    var framed = wardName || (isWard ? props.ward_name : hit.label);
+    var sites = ctx ? sitesIn(ctx) : [];
+    var water = ctx ? ctx.water : [];
     // Nothing here can fail or block, so there is no missing-picture case.
-    var wardAudits = auditsInWard('audit_water', wardName);
-    var picture = '<figure>' + reportSvg(reportSubjectFeature(hit), framed, wardAudits) +
-      '<figcaption>Every layer shown, whatever the legend switches say. ' +
-      'Subject outlined in black.' +
-      (wardAudits.length ? ' Dots: citizen audit points in this ward, coloured by ' +
+    var picture = '<figure>' +
+      reportSvg(ctx ? ctx.subject : hit.feature, ctx ? ctx.name : hit.label, water, sites) +
+      '<figcaption>' + (ctx && ctx.kind === 'area' ? 'Area map' : 'Ward map') +
+      '. Every layer shown, whatever the legend switches say. Subject outlined in black.' +
+      (water.length ? ' Dots: citizen audit points in this ' + ctx.where + ', coloured by ' +
         'water colour (see the table below).' : '') +
+      (sites.length ? ' Numbers match the sites for follow-up at the end of the report; ' +
+        'squares are drain structure points.' : '') +
       '</figcaption></figure>';
 
+    // The details sit beside the key map, which is left out when there is no ward.
+    var keyMap = ctx ? '<figure class="keymap-figure">' + keyMapSvg(ctx) +
+      '<figcaption>Key map: location of ' + esc(ctx.name) + ' in Greater Bengaluru.' +
+      '</figcaption></figure>' : '';
+    var top = '<div class="top"><div class="details">' + detailsTable(hit, ctx) + '</div>' +
+      keyMap + '</div>';
 
     return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" />' +
       '<title>' + esc(hit.label) + ' &mdash; water report</title><style>' +
@@ -1631,18 +2487,420 @@
       'button { margin-bottom: 18px; padding: 7px 14px; font: inherit; font-size: 13px;' +
       ' font-weight: 600; color: #fff; background: #0b6ea8; border: 0; border-radius: 6px;' +
       ' cursor: pointer; }' +
+      '.rank-note { margin: 8px 0 0; font-size: 12px; color: #3d4b58; }' +
+      // Headline facts at the top and actions at the end, set apart as panels.
+      '.summary, .actions { margin: 0 0 18px; padding: 10px 16px 12px; border-radius: 6px;' +
+      ' break-inside: avoid; }' +
+      '.summary { background: #eef6fb; border-left: 4px solid #0b6ea8; }' +
+      '.actions { margin-top: 26px; border: 1px solid #c8d2da; }' +
+      '.summary h2, .actions h2 { margin: 0 0 6px; }' +
+      '.summary ul, .actions ul { margin: 0; padding-left: 18px; }' +
+      '.summary li, .actions li { margin: 3px 0; }' +
+      // The site list starts a new printed page, so officials can hand it on alone.
+      '.appendix { margin-top: 26px; break-before: page; }' +
+      '.sites { font-size: 11px; }' +
+      '.sites th:nth-child(1) { width: 5%; } .sites th:nth-child(3) { width: 7%; }' +
+      '.sites th:nth-child(5) { width: 13%; } .sites th:nth-child(6) { width: 20%; }' +
+      '.sites tr { break-inside: avoid; }' +
+      '.sites a { color: #0b6ea8; }' +
+      '.data-note { margin-top: 26px; color: #3d4b58; break-inside: avoid; }' +
+      '.data-note ul { margin: 0; padding-left: 18px; }' +
+      '.data-note li { margin: 4px 0; }' +
+      // Details on the left, key map on the right; stacked on a narrow screen.
+      '.top { display: flex; gap: 20px; align-items: flex-start; break-inside: avoid; }' +
+      '.details { flex: 1; min-width: 0; }' +
+      '.keymap-figure { flex: 0 0 140px; margin: 0; }' +
+      '@media screen and (max-width: 560px) { .top { flex-direction: column; }' +
+      ' .keymap-figure { flex-basis: auto; width: 140px; } }' +
       '@media print { button { display: none; } body { padding: 0; } }' +
       '</style></head><body>' +
       '<button type="button" onclick="window.print()">Print / Save as PDF</button>' +
       '<h1>' + esc(hit.label) + '</h1>' +
       '<div class="kind">' + hit.def.kind + ' report</div>' +
-      subject + picture + context +
+      (ctx ? summaryBox(ctx) : '') + top + picture + body +
+      (ctx ? actionBox(sites.length > 0) + siteList(ctx, sites) : '') +
+      dataNote(ctx) +
       // No Esri credit here: the report map is drawn from the data alone and
       // carries no basemap tiles. The live map credits Esri on its own.
       '<footer>A project by Sonia Das. Data credits: Building a Resilient Bengaluru ' +
       'website (accessed 23 May 2026). ' +
       'Generated ' + new Date().toLocaleString() + '.</footer>' +
       '</body></html>';
+  }
+
+  // ------------------------------------------------- ask about your ward
+  // A question box for residents. It is not an AI: it spots a ward (or a lake,
+  // which it turns into that lake's ward) and a topic by simple word matching,
+  // then answers from wardContext, the same data the report uses, so the two
+  // always agree. Anything it cannot place gets the question chips, never a guess.
+
+  // Topics in the order they are checked: "lost lakes" must be caught by
+  // "lost" before "lake" claims it.
+  var ASK_TOPICS = [
+    { id: 'lost', chip: 'Has my ward lost lakes?',
+      words: ['lost', 'encroach', 'disappear', 'vanish', 'gone'] },
+    { id: 'lakes', chip: 'Which lakes are left?',
+      words: ['lake', 'tank', 'kere', 'water bod', 'pond'] },
+    { id: 'drains', chip: 'Which drains run through it?',
+      words: ['drain', 'nala', 'rajakaluve', 'canal', 'swd'] },
+    { id: 'audits', chip: 'What did audits find?',
+      words: ['audit', 'sewage', 'smell', 'black', 'garbage', 'pollut', 'dirty', 'waste'] },
+    { id: 'compare', chip: 'How does it compare with the city?',
+      words: ['compare', 'rank', 'worse', 'better', 'city', 'other ward'] }
+  ];
+
+  // Lists in an answer stop at this many items; the report has the rest.
+  var ASK_LIST_MAX = 5;
+
+  // Every ward and named lake, with the lower-case text to look for. Ward place
+  // names (the part after "21 - ") are all unique, so they match on their own.
+  var askPlaces = null;
+  function placesToMatch() {
+    if (askPlaces) return askPlaces;
+    askPlaces = [];
+    DATA.gba_wards.features.forEach(function (feature) {
+      var ward = String(feature.properties.ward_name || '').trim();
+      var place = ward.replace(/^\d+\s*-\s*/, '').toLowerCase();
+      if (place) askPlaces.push({ text: place, ward: ward, feature: feature });
+    });
+    ['lakes_existing', 'lakes_lost'].forEach(function (layerId) {
+      DATA[layerId].features.forEach(function (feature) {
+        var name = String(feature.properties.name || '').trim();
+        var ward = String(feature.properties.ward_name || '').trim();
+        // "Unknown" is a recorded name for 21 lost lakes, not something to match.
+        if (name.length < 4 || /^unknown$/i.test(name) || !ward) return;
+        askPlaces.push({ text: name.toLowerCase(), ward: ward, lake: name });
+      });
+    });
+    return askPlaces;
+  }
+
+  // Wards named in the text, longest match first so "kengeri satellite town"
+  // is not also read as "kengeri". Lakes count only when no ward is named.
+  function findWards(text) {
+    var lower = ' ' + text.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ') + ' ';
+    var hits = placesToMatch().filter(function (place) {
+      return lower.indexOf(' ' + place.text.replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ') + ' ') > -1;
+    }).sort(function (a, b) { return b.text.length - a.text.length; });
+    var kept = [];
+    hits.forEach(function (hit) {
+      var inside = kept.some(function (other) { return other.text.indexOf(hit.text) > -1; });
+      if (!inside) kept.push(hit);
+    });
+    var wards = kept.filter(function (hit) { return !hit.lake; });
+    var chosen = wards.length ? wards : kept;
+    // One entry per ward: two lakes in the same ward are still one answer.
+    var seen = {};
+    return chosen.filter(function (hit) {
+      if (seen[hit.ward]) return false;
+      seen[hit.ward] = true;
+      return true;
+    });
+  }
+
+  // Place names are taken out first, so "Garden City" is not read as a question
+  // about the city, nor "drains near Kengeri Kere" as one about lakes.
+  function findTopic(text) {
+    var lower = ' ' + text.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ') + ' ';
+    // Longest first: taking out "kengeri" before "kengeri kere" would leave "kere".
+    placesToMatch().slice().sort(function (a, b) {
+      return b.text.length - a.text.length;
+    }).forEach(function (place) {
+      lower = lower.split(' ' + place.text.replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ') + ' ').join('  ');
+    });
+    return ASK_TOPICS.filter(function (topic) {
+      return topic.words.some(function (word) { return lower.indexOf(word) > -1; });
+    })[0];
+  }
+
+  function wardFeature(wardName) {
+    return DATA.gba_wards.features.filter(function (feature) {
+      return String(feature.properties.ward_name || '').trim() === wardName;
+    })[0];
+  }
+
+  // Lakes in other wards whose name starts with the ward's place name, such as
+  // Hebbala Kere for a question about Hebbal. A resident asking about "Hebbal
+  // lake" means that lake, even though it lies in a neighbouring ward.
+  function similarLakes(wardName) {
+    var place = wardName.replace(/^\d+\s*-\s*/, '').toLowerCase();
+    return placesToMatch().filter(function (entry) {
+      return entry.lake && entry.ward !== wardName && entry.text.indexOf(place) === 0;
+    }).slice(0, 3);
+  }
+
+  function similarLakesNote(wardName) {
+    var lakes = similarLakes(wardName);
+    if (!lakes.length) return '';
+    return '<p>Looking for a lake named after the area? ' + lakes.map(function (lake) {
+      return esc(lake.lake) + ' is in ' + esc(lake.ward);
+    }).join('; ') + '.</p>';
+  }
+
+  function listItems(items) {
+    var shown = items.slice(0, ASK_LIST_MAX);
+    var more = items.length - shown.length;
+    return '<ul>' + shown.map(function (item) { return '<li>' + item + '</li>'; }).join('') +
+      '</ul>' + (more > 0 ? '<p>And ' + more + ' more. The full report lists them all.</p>' : '');
+  }
+
+  function acresText(acres) {
+    return acres.toFixed(1) + ' acres';
+  }
+
+  // One function per topic, each returning the answer's HTML.
+  var ASK_ANSWERS = {
+    lost: function (ctx) {
+      if (!ctx.lost.length) {
+        return '<p>No lost water bodies are recorded in ' + esc(ctx.name) + '.</p>' +
+          similarLakesNote(ctx.name);
+      }
+      var rank = ctx.stats && ctx.stats.lost_rank ?
+        ', ' + lossRankText(ctx.stats.lost_rank, DATA.ward_stats._city.lost_of) : '';
+      return '<p>Yes. ' + esc(ctx.name) + ' has lost ' +
+        plural(ctx.lost.length, 'water body', 'water bodies') + ', ' +
+        acresText(totalAcres(ctx.lost)) + ' in all' + rank + '.</p>' +
+        listItems(ctx.lost.map(function (lake) {
+          var props = lake.feature.properties;
+          return esc(props.name || 'Unnamed') + ' (' + acresText(lake.acres) + ')' +
+            (props.current_use ? ', now occupied by ' + esc(props.current_use) : '');
+        }));
+    },
+    lakes: function (ctx) {
+      if (!ctx.existing.length) {
+        return '<p>No existing water bodies are recorded in ' + esc(ctx.name) + '.</p>' +
+          similarLakesNote(ctx.name);
+      }
+      return '<p>' + esc(ctx.name) + ' has ' +
+        plural(ctx.existing.length, 'existing water body', 'existing water bodies') + ', ' +
+        acresText(totalAcres(ctx.existing)) + ' inside the ward.</p>' +
+        listItems(ctx.existing.map(function (lake) {
+          var props = lake.feature.properties;
+          return esc(props.name || 'Unnamed') + ' (' + acresText(lake.acres) + ')' +
+            (props.status ? ', ' + esc(props.status.toLowerCase()) : '');
+        }));
+    },
+    drains: function (ctx) {
+      var primary = ctx.drains.primarydrains;
+      var secondary = ctx.drains.secondarydrains;
+      var primaryKm = drainKm(primary);
+      var secondaryKm = drainKm(secondary);
+      if (!primaryKm && !secondaryKm) {
+        return '<p>No mapped drains cross ' + esc(ctx.name) + '.</p>';
+      }
+      function part(entry, label) {
+        if (!entry || (!entry.named.length && !entry.unnamed_m)) return '';
+        return '<p><b>' + label + ':</b></p>' +
+          (entry.named.length ? listItems(entry.named.map(function (drain) {
+            return esc(drain.name) + ' (' + metres(drain.m) + ')' +
+              (drain.feeds ? ', flows into ' + esc(drain.feeds) : '');
+          })) : '') +
+          (entry.unnamed_m ? '<p>Plus ' + metres(entry.unnamed_m) +
+            ' of drains with no recorded name.</p>' : '');
+      }
+      return '<p>' + (primaryKm + secondaryKm).toFixed(1) + ' km of drain runs through ' +
+        esc(ctx.name) + ' (' + primaryKm.toFixed(1) + ' km primary, ' +
+        secondaryKm.toFixed(1) + ' km secondary).</p>' +
+        part(primary, 'Primary drains') + part(secondary, 'Secondary drains') +
+        '<p>Drain codes are the IDs used in the source maps.</p>';
+    },
+    audits: function (ctx) {
+      var all = ctx.water.concat(ctx.structure);
+      if (!all.length) {
+        return '<p>No citizen audits have been recorded in ' + esc(ctx.name) + ' yet. A ward ' +
+          'without audits has not been checked, which does not mean its drains are clean.</p>' +
+          '<p>To take part, see buildingaresilientbengaluru.com.</p>';
+      }
+      var dates = distinct(all, 'date').sort();
+      var sites = sitesIn(ctx).length;
+      return '<p>' + esc(auditSentence(ctx) ||
+          'Citizens recorded ' + plural(all.length, 'point', 'points') + ' on its drains.') + '</p>' +
+        '<p>Recorded by ' + esc(distinct(all, 'team').join(', ')) + ', ' + formatDate(dates[0]) +
+        (dates.length > 1 ? ' to ' + formatDate(dates[dates.length - 1]) : '') + '.</p>' +
+        (sites ? '<p>' + plural(sites, 'site needs', 'sites need') + ' follow-up. The full ' +
+          'report lists each one with its location.</p>' : '') +
+        '<p>These are visual checks by trained volunteers, not lab tests.</p>';
+    },
+    compare: function (ctx) {
+      var stats = ctx.stats;
+      var city = DATA.ward_stats._city;
+      var lines = [];
+      lines.push(stats.lost_rank ?
+        'Its loss of water bodies is ' + lossRankText(stats.lost_rank, city.lost_of) + '.' :
+        'It has no lost water bodies on record; ' + city.lost_of + ' of the ' + city.wards +
+          ' wards do.');
+      if (stats.existing_rank) {
+        lines.push('It has the ' + (stats.existing_rank === 1 ? '' : ordinal(stats.existing_rank) + ' ') +
+          'largest area of existing water bodies among the ' + city.existing_of +
+          ' wards that have any.');
+      }
+      if (stats.primary_km + stats.secondary_km) {
+        lines.push('It has more drain per sq km than ' + stats.drain_pct + '% of wards.');
+      }
+      return '<p>How ' + esc(ctx.name) + ' compares with the other ' + (city.wards - 1) +
+        ' wards:</p>' + listItems(lines) +
+        '<p>Citizen audits are not ranked, as many wards have not been checked yet.</p>';
+    }
+  };
+
+  function buildAsk() {
+    var panel = document.getElementById('ask');
+    var messages = document.getElementById('ask-messages');
+    var chips = document.getElementById('ask-chips');
+    var input = document.getElementById('ask-input');
+    var wardLabel = document.getElementById('ask-ward');
+    var changeButton = document.getElementById('ask-change');
+    var currentWard = null;
+    var pendingTopic = null;
+
+    function addMessage(role, html, actions) {
+      var bubble = document.createElement('div');
+      bubble.className = 'msg ' + role;
+      bubble.innerHTML = html;
+      if (actions && actions.length) {
+        var row = document.createElement('div');
+        row.className = 'msg-actions';
+        actions.forEach(function (action) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'chip';
+          button.textContent = action.label;
+          button.addEventListener('click', action.run);
+          row.appendChild(button);
+        });
+        bubble.appendChild(row);
+      }
+      messages.appendChild(bubble);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function showTopicChips() {
+      chips.innerHTML = '';
+      ASK_TOPICS.forEach(function (topic) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'chip';
+        button.textContent = topic.chip;
+        button.addEventListener('click', function () {
+          addMessage('user', esc(topic.chip));
+          answer(topic, null);
+        });
+        chips.appendChild(button);
+      });
+    }
+
+    function setWard(wardName) {
+      currentWard = wardName;
+      wardLabel.textContent = wardName ? 'Asking about ' + wardName : 'Type your ward, or a lake near you.';
+      changeButton.hidden = !wardName;
+    }
+
+    // Buttons under every answer: the map and the full report for that ward.
+    function wardActions(wardName) {
+      var hit = { def: layerById('gba_wards'), feature: wardFeature(wardName), label: wardName };
+      return [
+        { label: 'Show on map', run: function () { goTo(hit); } },
+        { label: 'Open full report', run: function () {
+          select(hit.def, hit.feature);
+          document.getElementById('report').click();
+        } }
+      ];
+    }
+
+    // lakeNote: "Kengeri Kere is in 21 - Mylasandra." when a lake led to the ward.
+    function answer(topic, lakeNote) {
+      if (!currentWard) {
+        pendingTopic = topic;
+        addMessage('bot', '<p>Which ward? Type the ward name, or the name of a lake near you.</p>');
+        return;
+      }
+      pendingTopic = null;
+      var ctx = wardContext(currentWard, wardFeature(currentWard));
+      addMessage('bot', (lakeNote ? '<p>' + lakeNote + '</p>' : '') + ASK_ANSWERS[topic.id](ctx),
+                 wardActions(currentWard));
+    }
+
+    function ask(text) {
+      text = text.trim();
+      if (!text) return;
+      addMessage('user', esc(text));
+
+      var wards = findWards(text);
+      if (wards.length > 1) {
+        addMessage('bot', '<p>That could be more than one ward. Which one did you mean?</p>',
+          wards.slice(0, 6).map(function (hit) {
+            return { label: hit.ward, run: function () {
+              setWard(hit.ward);
+              var topic = findTopic(text) || pendingTopic;
+              if (topic) answer(topic, null);
+              else addMessage('bot', '<p>What would you like to know about ' + esc(hit.ward) +
+                              '? Pick a question below.</p>');
+            } };
+          }));
+        return;
+      }
+
+      var lakeNote = null;
+      if (wards.length === 1) {
+        setWard(wards[0].ward);
+        if (wards[0].lake) lakeNote = esc(wards[0].lake) + ' is in ' + esc(wards[0].ward) + '.';
+      }
+
+      var topic = findTopic(text) || pendingTopic;
+      if (topic) {
+        answer(topic, lakeNote);
+      } else if (wards.length === 1) {
+        addMessage('bot', (lakeNote ? '<p>' + lakeNote + '</p>' : '') +
+          '<p>What would you like to know about ' + esc(currentWard) + '? Pick a question below.</p>');
+      } else {
+        addMessage('bot', '<p>I can answer questions about lakes, drains and citizen audits ' +
+          'in a ward, but I could not find a ward or a question in that. Try naming your ward, ' +
+          'or one of these questions:</p>');
+      }
+    }
+
+    // The button lives on the map, at the top centre, so it is created here and
+    // kept from passing its clicks to the map underneath. The icon is a speech
+    // bubble holding a water drop.
+    var openButton = document.createElement('button');
+    openButton.type = 'button';
+    openButton.id = 'ask-open';
+    openButton.innerHTML =
+      '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"' +
+        ' fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' +
+        '<path d="M12 6.5c-1.6 2.2-2.6 3.6-2.6 4.9a2.6 2.6 0 0 0 5.2 0c0-1.3-1-2.7-2.6-4.9z"' +
+        ' fill="currentColor"/>' +
+      '</svg>Ask about your ward';
+    L.DomEvent.disableClickPropagation(openButton);
+    map.getContainer().appendChild(openButton);
+
+    openButton.addEventListener('click', function () {
+      openButton.classList.add('seen');
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) input.focus();
+    });
+    document.getElementById('ask-close').addEventListener('click', function () {
+      panel.hidden = true;
+    });
+    document.getElementById('ask-help').addEventListener('click', function () {
+      document.getElementById('help-open').click();
+    });
+    changeButton.addEventListener('click', function () {
+      setWard(null);
+      addMessage('bot', '<p>Which ward next? Type the ward name, or a lake near you.</p>');
+      input.focus();
+    });
+    document.getElementById('ask-form').addEventListener('submit', function (event) {
+      event.preventDefault();
+      ask(input.value);
+      input.value = '';
+    });
+
+    addMessage('bot', '<p>Ask about lakes, drains and citizen audits in any Bengaluru ward. ' +
+      'Start by typing your ward, or a lake near you, with your question. For example: ' +
+      '<i>Has Mylasandra lost any lakes?</i></p>');
+    showTopicChips();
   }
 
   function buildHelpDialog() {
@@ -1691,6 +2949,8 @@
   buildReset();
   buildSearch();
   buildReportButton();
+  buildUpload();
+  buildAsk();
   buildHelpDialog();
   refresh();
 

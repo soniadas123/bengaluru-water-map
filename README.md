@@ -23,6 +23,22 @@ The next version is previewed at
 Build the preview with `python build_map.py next/index.html`. The audit layers need
 the three form CSVs from MOD Foundation in `data/`; they are not in this repository.
 
+Version 3 is at
+**[/version3/](https://soniadas123.github.io/bengaluru-water-map/version3/)**,
+tagged `version3`. It adds:
+
+- an **Ask about your ward** box at the top of the map: type a ward or a lake and
+  ask about lost lakes, lakes left, drains, citizen audits or how the ward compares
+  with the city. It is not an AI; it answers from the same data as the reports;
+- a report for your own area: upload a KML polygon under the report button and the
+  report covers what lies inside it (read in the browser, never uploaded);
+- in reports, a summary of headline facts, a key map showing where the ward sits in
+  the city, the drains crossing the ward with their length inside it, ranks against
+  the other wards, next steps, a numbered list of audit sites for follow-up with
+  map links, and a note on the data and its limits.
+
+Build it with `python build_map.py version3/index.html`.
+
 Pick a ward or a water body, by search or by clicking it, and the map generates
 a report: a map of that ward with every layer switched on, and tables of the
 existing and lost water bodies recorded there. Every figure in the report is

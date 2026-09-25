@@ -40,6 +40,15 @@ SQ_M_PER_ACRE = 4046.8564224
 # ward outlines disagree slightly, not real lake area, so it is left out.
 MIN_ACRES = 0.1
 
+# A drain piece inside a ward shorter than this only touches the ward edge, so
+# it does not count as crossing the ward.
+MIN_DRAIN_M = 20
+
+# The report's key map shows the whole city in a small box, so the ward
+# outlines can be much coarser than on the main map.
+KEYMAP_SIMPLIFY_M = 60
+KEYMAP_DECIMALS = 4
+
 # Strings the source data uses to mean "no value".
 EMPTY_VALUES = {"", "None", "nan", "NaN", "<NA>", "null"}
 
@@ -327,6 +336,138 @@ def lake_area_by_ward(name, filename, wards):
     return result
 
 
+def is_drain_name(value):
+    """False for a missing name or an "unknown12" style placeholder."""
+    if not isinstance(value, str):
+        return False
+    value = value.strip()
+    return bool(value) and value not in EMPTY_VALUES and \
+        not PLACEHOLDER_PATTERN.match(value)
+
+
+def drains_by_ward(name, filename, wards):
+    """Drains that cross each ward, with the length inside the ward in metres.
+
+    Returns {ward_name: {"named": [{"name", "m", "feeds"?}, ...], "unnamed_m": m}},
+    named drains longest first. "feeds" is the primary drain a secondary drain
+    flows into, when recorded. The source files store most drains as many short
+    pieces (the median secondary piece is 7 m), so pieces are added up per drain
+    name before the MIN_DRAIN_M cut-off applies, and drains with no name are only
+    given as a total length, since counting their pieces would mean nothing.
+    """
+    drains = gpd.read_file(DATA_DIR / filename).to_crs(METRIC_CRS)
+    if "pri_Drain num" not in drains.columns:
+        drains["pri_Drain num"] = None
+    drains = drains[["Drain num", "pri_Drain num", "geometry"]]
+
+    pieces = gpd.overlay(drains, wards[["ward_name", "geometry"]],
+                         how="intersection", keep_geom_type=True)
+    pieces["m"] = pieces.geometry.length
+    pieces["ward_name"] = pieces["ward_name"].str.strip()
+    is_named = pieces["Drain num"].apply(is_drain_name)
+    pieces["Drain num"] = pieces["Drain num"].where(is_named).str.strip()
+    pieces["feeds"] = pieces["pri_Drain num"].where(
+        pieces["pri_Drain num"].apply(is_drain_name)).str.strip()
+
+    named = pieces[is_named].groupby(["ward_name", "Drain num"], as_index=False).agg(
+        m=("m", "sum"), feeds=("feeds", "first")).rename(columns={"Drain num": "drain"})
+    named = named[named["m"] >= MIN_DRAIN_M].sort_values("m", ascending=False)
+    unnamed = pieces[~is_named].groupby("ward_name")["m"].sum()
+    unnamed = unnamed[unnamed >= MIN_DRAIN_M]
+
+    result = {}
+    for row in named.itertuples():
+        entry = {"name": row.drain, "m": round(row.m)}
+        if isinstance(row.feeds, str):
+            entry["feeds"] = row.feeds
+        ward = result.setdefault(row.ward_name, {"named": [], "unnamed_m": 0})
+        ward["named"].append(entry)
+    for ward_name, metres in unnamed.items():
+        result.setdefault(ward_name, {"named": [], "unnamed_m": 0})
+        result[ward_name]["unnamed_m"] = round(metres)
+
+    print(f"  {name:18s} {len(named):5d} named drain-in-ward entries, "
+          f"{len(unnamed)} wards with unnamed drains")
+    return result
+
+
+def ward_stats(wards, ward_lakes, ward_drains):
+    """Each ward's headline figures and how it compares with the other wards.
+
+    Ranks count only wards that have any of the thing being ranked, so a ward
+    is never "ahead" of wards that simply have none. Drains are compared per
+    square km, as bigger wards would otherwise always come out on top.
+    Citizen audits are not ranked: a ward with no audits was not checked,
+    which says nothing about its drains.
+    """
+    stats = pd.DataFrame({"ward_name": wards["ward_name"].str.strip(),
+                          "area_km2": wards.geometry.area / 1e6})
+
+    def lake_acres(layer):
+        return stats["ward_name"].map(
+            lambda ward: sum(lake["acres"] for lake in ward_lakes[layer].get(ward, [])))
+
+    def drain_km(layer):
+        return stats["ward_name"].map(
+            lambda ward: (sum(d["m"] for d in ward_drains[layer].get(ward, {}).get("named", [])) +
+                          ward_drains[layer].get(ward, {}).get("unnamed_m", 0)) / 1000)
+
+    stats["existing_acres"] = lake_acres("lakes_existing")
+    stats["lost_acres"] = lake_acres("lakes_lost")
+    stats["primary_km"] = drain_km("primarydrains")
+    stats["secondary_km"] = drain_km("secondarydrains")
+    stats["drain_density"] = (stats["primary_km"] + stats["secondary_km"]) / stats["area_km2"]
+
+    result = {}
+    lost_of = int((stats["lost_acres"] > 0).sum())
+    existing_of = int((stats["existing_acres"] > 0).sum())
+    for row in stats.itertuples():
+        entry = {
+            "area_km2": round(row.area_km2, 2),
+            "existing_acres": round(row.existing_acres, 2),
+            "lost_acres": round(row.lost_acres, 2),
+            "primary_km": round(row.primary_km, 2),
+            "secondary_km": round(row.secondary_km, 2),
+            # Share of wards with less drain per sq km than this one.
+            "drain_pct": round(100 * float((stats["drain_density"] < row.drain_density).mean())),
+        }
+        total_water = row.existing_acres + row.lost_acres
+        if total_water > 0:
+            entry["lost_share"] = round(100 * row.lost_acres / total_water)
+        if row.lost_acres > 0:
+            entry["lost_rank"] = int((stats["lost_acres"] > row.lost_acres).sum()) + 1
+        if row.existing_acres > 0:
+            entry["existing_rank"] = int((stats["existing_acres"] > row.existing_acres).sum()) + 1
+        result[row.ward_name] = entry
+
+    result["_city"] = {
+        "wards": len(stats),
+        "lost_of": lost_of,
+        "existing_of": existing_of,
+        "lost_acres": round(float(stats["lost_acres"].sum()), 1),
+        "existing_acres": round(float(stats["existing_acres"].sum()), 1),
+    }
+    print(f"  {'ward_stats':18s} {len(stats):5d} wards, {lost_of} lost water bodies, "
+          f"{existing_of} have existing ones")
+    return result
+
+
+def keymap_wards(wards):
+    """Coarse ward outlines for the small key map in the report."""
+    coarse = wards[["ward_name", "geometry"]].copy()
+    coarse["ward_name"] = coarse["ward_name"].str.strip()
+    coarse["geometry"] = coarse.geometry.simplify(KEYMAP_SIMPLIFY_M).buffer(0)
+    coarse = coarse.to_crs(4326)
+
+    collection = json.loads(coarse.to_json(drop_id=True))
+    for feature in collection["features"]:
+        feature["geometry"]["coordinates"] = round_coords(
+            feature["geometry"]["coordinates"], KEYMAP_DECIMALS
+        )
+    print(f"  {'keymap_wards':18s} {len(collection['features']):5d} coarse outlines")
+    return collection
+
+
 def main():
     print("Preparing layers")
     wards = load_wards()
@@ -345,6 +486,19 @@ def main():
         for name, filename, _, _ in LAYERS
         if name in ("lakes_existing", "lakes_lost")
     }
+
+    print("Finding drains crossing each ward")
+    layers["ward_drains"] = {
+        name: drains_by_ward(name, filename, wards)
+        for name, filename, _, _ in LAYERS
+        if name in ("primarydrains", "secondarydrains")
+    }
+
+    print("Comparing wards")
+    layers["ward_stats"] = ward_stats(wards, layers["ward_lakes"], layers["ward_drains"])
+
+    print("Preparing key map")
+    layers["keymap_wards"] = keymap_wards(wards)
 
     payload = json.dumps(layers, separators=(",", ":"), ensure_ascii=False)
     # Stop any stray "</script>" in the data from closing the script tag early.
