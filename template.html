@@ -322,8 +322,8 @@
   .basemaps input { position: absolute; opacity: 0; pointer-events: none; }
   .basemaps label.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-  /* Help dialog */
-  #help {
+  /* Help and About dialogs share one look. */
+  #help, #about {
     width: min(640px, calc(100vw - 32px));
     max-height: calc(100vh - 64px);
     padding: 0;
@@ -333,17 +333,17 @@
     box-shadow: 0 20px 60px rgba(15, 30, 45, 0.3);
   }
 
-  #help::backdrop { background: rgba(15, 30, 45, 0.45); }
+  #help::backdrop, #about::backdrop { background: rgba(15, 30, 45, 0.45); }
 
-  #help article {
+  #help article, #about article {
     max-height: calc(100vh - 132px);
     overflow-y: auto;
     padding: 22px 24px 8px;
   }
 
-  #help h2 { margin: 0 0 14px; font-size: 19px; }
+  #help h2, #about h2 { margin: 0 0 14px; font-size: 19px; }
 
-  #help h3 {
+  #help h3, #about h3 {
     margin: 18px 0 6px;
     font-size: 11px;
     font-weight: 700;
@@ -352,18 +352,18 @@
     color: var(--muted);
   }
 
-  #help p { margin: 0 0 8px; font-size: 13px; }
-  #help ul { margin: 0 0 8px; padding-left: 18px; font-size: 13px; }
-  #help li { margin-bottom: 4px; }
+  #help p, #about p { margin: 0 0 8px; font-size: 13px; }
+  #help ul, #about ul { margin: 0 0 8px; padding-left: 18px; font-size: 13px; }
+  #help li, #about li { margin-bottom: 4px; }
 
-  #help .callout {
+  #help .callout, #about .callout {
     padding: 9px 11px;
     background: #eef6fb;
     border-left: 3px solid var(--accent);
     border-radius: 0 6px 6px 0;
   }
 
-  #help-close {
+  #help-close, #about-close {
     display: block;
     margin: 8px 24px 20px auto;
     padding: 7px 16px;
@@ -811,6 +811,69 @@
   <button type="button" id="help-close">Close</button>
 </dialog>
 
+<dialog id="about">
+  <article>
+    <h2>About this map</h2>
+
+    <h3>Why I built this</h3>
+    <p>From March 2025 to February 2026 I worked with MOD Foundation on Building a
+      Resilient Bengaluru. Volunteer teams walked the city&rsquo;s stormwater drains and
+      recorded what they found at each point: the water colour, the smell, any garbage,
+      unauthorised inlets, broken retaining walls. By the end there was a large, careful
+      dataset.</p>
+    <p>In May 2026 I went to a DataJam, and one thought stayed with me afterwards: if I
+      were building something from this data for residents, what would it be? This map is
+      my answer so far. It reflects my own understanding of what residents need, and
+      it&rsquo;s a work in progress.</p>
+
+    <h3>What it does</h3>
+    <ul>
+      <li><b>Shows the city&rsquo;s water on one map.</b> Existing lakes, lost lakes,
+        primary and secondary drains, and ward and corporation boundaries are separate
+        layers you can switch on and off.</li>
+      <li><b>Ask about your ward.</b> Type a ward name or a lake near you and ask a plain
+        question, like <i>&ldquo;Has Mylasandra lost any lakes?&rdquo;</i> or <i>&ldquo;What
+        did audits find?&rdquo;</i> The answers come from the map&rsquo;s own data, not
+        from AI. I added this because I expect people will want to ask rather than click
+        through layers.</li>
+      <li><b>Gives every ward a full report.</b> Each report covers its water bodies, the
+        drains that cross it (with the length inside the ward), what citizen audits found
+        and what each finding usually means, and next steps for residents and officials.
+        It ends with a numbered list of sites that need follow-up, and each site links to
+        its exact spot in Google Maps.</li>
+      <li><b>Lets you report on your own area.</b> Upload a KML polygon of your
+        neighbourhood or project site and get the same report for that area. The file is
+        read in your browser and never uploaded.</li>
+      <li><b>Saves as a PDF,</b> so you can share it with your ward office, ward committee
+        or residents&rsquo; group.</li>
+    </ul>
+
+    <h3>About the data</h3>
+    <ul>
+      <li>Source: Building a Resilient Bengaluru, data accessed on 23 May 2026.</li>
+      <li>The year shown for a lost lake is the last survey it appears in. It is not the
+        year the lake was lost.</li>
+      <li>Audit points are visual checks by trained volunteers, not lab tests. They show
+        where to look more closely. Water quality can only be confirmed by testing, for
+        example by the Karnataka State Pollution Control Board.</li>
+      <li>Some numbers are clipped to the boundary. Drain lengths and lake areas count only
+        the part inside the ward or area. Drains with less than 20 m inside, and lake
+        pieces under 0.1 acres, are left out.</li>
+    </ul>
+
+    <h3>What&rsquo;s next</h3>
+    <p>I&rsquo;d like people to be able to talk to this map one day. A voice layer, perhaps
+      through Wispr Flow, would let a resident ask about their ward out loud instead of
+      typing. That matters in a city where many people are more comfortable speaking than
+      typing, and in more than one language.</p>
+
+    <h3>Credits</h3>
+    <p>Design and code by Sonia Das &middot; Data from Building a Resilient Bengaluru
+      &middot; Basemap tiles &copy; Esri</p>
+  </article>
+  <button type="button" id="about-close">Close</button>
+</dialog>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <!-- For the uploaded-area report: togeojson reads the KML, Turf measures what lies inside. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/togeojson/0.16.0/togeojson.min.js"></script>
@@ -1095,6 +1158,7 @@
       '</div>' +
       '<div class="help">' +
         '<button type="button" id="help-open" title="How to use this map">How to use?</button>' +
+        '<button type="button" id="about-open" title="Why this map exists">About</button>' +
       '</div>';
 
     // Without both of these a click or a wheel over the card also reaches the
@@ -2903,20 +2967,26 @@
     showTopicChips();
   }
 
-  function buildHelpDialog() {
-    var dialog = document.getElementById('help');
+  // Opens a dialog from one button and closes it from another.
+  function wireDialog(openId, closeId, dialogId) {
+    var dialog = document.getElementById(dialogId);
 
-    document.getElementById('help-open').addEventListener('click', function () {
+    document.getElementById(openId).addEventListener('click', function () {
       // showModal gives the backdrop and Escape-to-close for free; the
       // fallback is for any browser without it.
       if (dialog.showModal) dialog.showModal();
       else dialog.setAttribute('open', '');
     });
 
-    document.getElementById('help-close').addEventListener('click', function () {
+    document.getElementById(closeId).addEventListener('click', function () {
       if (dialog.close) dialog.close();
       else dialog.removeAttribute('open');
     });
+  }
+
+  function buildHelpDialog() {
+    wireDialog('help-open', 'help-close', 'help');
+    wireDialog('about-open', 'about-close', 'about');
   }
 
   function buildReportButton() {
