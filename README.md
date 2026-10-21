@@ -35,9 +35,25 @@ tagged `version3`. It adds:
 - in reports, a summary of headline facts, a key map showing where the ward sits in
   the city, the drains crossing the ward with their length inside it, ranks against
   the other wards, next steps, a numbered list of audit sites for follow-up with
-  map links, and a note on the data and its limits.
+  map links, and a note on the data and its limits;
+- an **About** pop-up explaining why the map was built, what it does and the
+  data's limits.
 
 Build it with `python build_map.py version3/index.html`.
+
+Version 4 is at
+**[/version4/](https://soniadas123.github.io/bengaluru-water-map/version4/)**.
+It is a new design of the same map:
+
+- a top bar linking to the water map, ward reports, a list of the lost lakes, the
+  citizen audits and the About pop-up, with a slide-in menu on phones;
+- a sidebar with the title, chips to show all water, lakes today, lost lakes or
+  drains, and the count of lost water bodies;
+- **My nearest lake**, which uses the browser's location (not stored) to fly to the
+  closest existing lake;
+- a light grey basemap, and a page that stacks into one column on phones.
+
+It has its own template: `python build_map.py version4/index.html template_v4.html`.
 
 Pick a ward or a water body, by search or by clicking it, and the map generates
 a report: a map of that ward with every layer switched on, and tables of the

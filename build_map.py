@@ -7,6 +7,8 @@ can be opened by double-clicking -- no web server, no Mapbox account.
 
 Run:  python build_map.py                    writes index.html
       python build_map.py next/index.html    writes the page somewhere else
+      python build_map.py version4/index.html template_v4.html
+                                             uses another template
 """
 
 import json
@@ -19,9 +21,10 @@ import pandas as pd
 
 BASE = Path(__file__).parent
 DATA_DIR = BASE / "data"
-TEMPLATE = BASE / "template.html"
-# The page to write; a path on the command line, relative to this folder, overrides it.
+# The page to write, then the template to fill; paths on the command line,
+# relative to this folder, override them.
 OUTPUT = BASE / (sys.argv[1] if len(sys.argv) > 1 else "index.html")
+TEMPLATE = BASE / (sys.argv[2] if len(sys.argv) > 2 else "template.html")
 
 # UTM 43N. Bengaluru sits in this zone, so simplification tolerances and any
 # measurements are in real metres rather than degrees.
